@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "my-places",
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@expo/webpack-config": "^0.17.2",
-    "@react-native-async-storage/async-storage": "^1.17.11",
+
     "axios": "^1.2.2",
     "expo": "~47.0.9",
     "expo-dev-client": "~2.0.1",
@@ -30,5 +30,5 @@
   "devDependencies": {
     "@babel/core": "^7.12.9"
   },
-  "private": true
+  "private": false
 }

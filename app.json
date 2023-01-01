@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "my-app",
+    "name": "myPlaces",
     "slug": "my-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./images/worldMapIcon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -18,14 +18,22 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.leifonatree.myapp"
+      "package": "com.leifonatree.myapp",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
