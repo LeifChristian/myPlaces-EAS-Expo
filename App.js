@@ -779,6 +779,8 @@ export default function App() {
         {list()}
       </MapView>
 
+      {/* <ScaleBar zoom={zoom} latitude={center[1]}></ScaleBar> */}
+
       <View style={{ backgroundColor: "black" }}></View>
 
       <Text
