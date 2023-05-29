@@ -1,6 +1,7 @@
 import { React, useState, useEffect, useRef } from "react";
 import MapView from "react-native-maps";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Dimensions } from 'react-native';
 import { Marker } from "react-native-maps";
 import uuid from "react-native-uuid";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
@@ -11,6 +12,10 @@ import Modality from "./components/modal";
 import PlacesModal from "./components/placesModal";
 import Prompt from "react-native-input-prompt";
 import axios from "axios";
+import ScaleBar from "react-native-map-scale-bar";
+
+const windowWidth = Dimensions.get('window').width;
+const windowHeight = Dimensions.get('window').height;
 
 import {
   StyleSheet,
@@ -478,6 +483,7 @@ export default function App() {
         setLongD((prevState) => prevState + prevState / 4);
         setLatD((prevState) => prevState + prevState / 4);
         console.log(longD);
+        
         break;
 
       case "plus":
@@ -754,6 +760,7 @@ export default function App() {
       <MapView
         userInterfaceStyle={"dark"}
         ref={mapRef}
+        zoomEnabled={true}
         mapType={mapType}
         style={{ marginTop: "12%", height: "68%", width: "100%" }}
         showsUserLocation={true}
@@ -779,7 +786,7 @@ export default function App() {
         {list()}
       </MapView>
 
-      {/* <ScaleBar zoom={zoom} latitude={center[1]}></ScaleBar> */}
+      {/* <ScaleBar zoom={(longD/latD)} latitude={latD}>{console.log((latD, longD + 'nice'))}</ScaleBar> */}
 
       <View style={{ backgroundColor: "black" }}></View>
 
@@ -910,17 +917,17 @@ export default function App() {
             move("up");
           }}
         >
-          <Text style={styles.up}>↑</Text>
+          <Text style={[styles.up, ]}>↑</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.group}>
+      <View style={styles.group }>
         <TouchableOpacity
           onPressIn={() => {
             move("minus");
           }}
         >
-          <Text style={styles.minus}>--</Text>
+          <Text style={[styles.minus, { marginTop:-2.5, width: 'auto', marginLeft: -7}]}>--</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -928,7 +935,7 @@ export default function App() {
             move("left");
           }}
         >
-          <Text style={[styles.leftRight]}>←</Text>
+          <Text style={[styles.leftRight, ]}>←</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => {showMyLocation(); showMyLiveLocation()}}>
@@ -937,8 +944,9 @@ export default function App() {
               height: 41,
               width: 41,
               marginTop: 15.5,
-              marginRight: 6,
-              marginLeft: 0,
+              marginRight: 3,
+              marginLeft: -7,
+              marginBottom: -200,
               justifyContent: "center",
               alignContent: "center",
               alignItems: "center",
@@ -952,7 +960,7 @@ export default function App() {
             move("right");
           }}
         >
-          <Text style={[styles.leftRight]}>→</Text>
+          <Text style={[styles.leftRight, ]}>→</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -960,7 +968,7 @@ export default function App() {
             move("plus");
           }}
         >
-          <Text style={styles.plus}>+</Text>
+          <Text style={[styles.plus, {marginTop:-2.5}]}>+</Text>
         </TouchableOpacity>
       </View>
 
@@ -970,7 +978,7 @@ export default function App() {
             move("down");
           }}
         >
-          <Text style={styles.Down}>↓</Text>
+          <Text style={[styles.Down, ]}>↓</Text>
         </TouchableOpacity>
       </View>
 
@@ -982,7 +990,7 @@ export default function App() {
             toggleWatchPosition ? stopMyLiveLocation() : "";
           }}
         >
-          {!GoogleInput ? <Text style={styles.buttonStyleAdd}>Add</Text> : null}
+          {!GoogleInput ? <Text style={[styles.buttonStyleAdd, ]}>Add</Text> : null}
         </TouchableOpacity>
 
         <PlacesModal
@@ -1081,7 +1089,6 @@ export default function App() {
           />
         ) : null}
       </View>
-      <View style={styles.group}></View>
     </View>
   );
 }
@@ -1094,12 +1101,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   top: { marginTop: "10%", zIndex: -12 },
-  group: { flexDirection: "row", marginTop: "2%" },
+  group: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: -1, // Added bottom margin
+  },
 
   leftRight: {
     color: "white",
     marginLeft: "3%",
-    marginTop: "3%",
+    marginTop: -7,
     marginBottom: "2%",
     fontWeight: "900",
     textAlign: "center",
@@ -1112,10 +1123,11 @@ const styles = StyleSheet.create({
   plus: {
     color: "white",
     marginRight: 1.4,
-    marginLeft: -1,
-    marginTop: 12,
+    marginLeft: -12,
+    marginTop: 1,
     fontWeight: "900",
     textAlign: "center",
+    padding: 8,
     fontSize: 32,
     width: 52,
     borderRadius: 12,
@@ -1123,20 +1135,20 @@ const styles = StyleSheet.create({
   },
   minus: {
     color: "white",
-    marginTop: "6%",
+    marginTop: 6, // Updated margin value
     fontWeight: "900",
     marginRight: 2,
     textAlign: "center",
     fontSize: 32,
-    width: 52,
     borderRadius: 12,
-    padding: 8,
+    padding: 6,
     backgroundColor: "black",
   },
+  
   up: {
     color: "white",
     marginLeft: "1%",
-    marginTop: -10,
+    marginTop: -31, // Updated margin value
     marginRight: "1%",
     fontWeight: "900",
     textAlign: "center",
@@ -1146,10 +1158,10 @@ const styles = StyleSheet.create({
     padding: 4,
     backgroundColor: "black",
   },
-
+ 
   autoStyle: {
     marginLeft: "auto",
-    marginBottom: "-4%",
+    marginBottom: "-40%",
     color: "white",
     textAlign: "center",
     fontSize: 39,
@@ -1174,18 +1186,19 @@ const styles = StyleSheet.create({
   },
 
   buttonStyleAdd: {
-    marginBottom: "5%",
+    marginTop: 2,
+    marginBottom: 3, // Adjusted margin value
     marginRight: "8%",
     marginLeft: 11,
-    marginBottom: "1%",
     color: "white",
     textAlign: "center",
     fontSize: 25,
     borderRadius: 12,
-    padding: 6,
+    padding: 8,
     backgroundColor: "black",
-    marginTop: 2.6,
+    marginTop: 0, // Adjusted margin value
   },
+  
   Down: {
     marginBottom: "-10%",
     color: "white",
@@ -1197,7 +1210,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 6,
     backgroundColor: "black",
-    marginTop: 1.7,
+    marginTop: -1.6,
   },
 
   modalItemStyle: { fontSize: 16, textAlign: "center", color: "white" },

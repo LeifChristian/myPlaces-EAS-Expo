@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 60,
+    marginTop: 30,
     width: 400,
 
     // backgroundColor: 'rgba(0,0,0,1)',

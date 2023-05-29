@@ -52,7 +52,7 @@ const Modality = (props) => {
         }}
       >
         {props.googleInput ? (
-          <Text style={styles.textStyle}>Places</Text>
+          <Text style={[styles.textStyle, ]}>Places</Text>
         ) : null}
       </Pressable>
     </View>
