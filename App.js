@@ -47,7 +47,7 @@ export default function App() {
   const [display, setDisplay] = useState("null");
   const mapRef = useRef(null);
 
-  const [modalVisible, setModalVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(true);
   const [addPrompt, setaddPrompt] = useState(false);
 
   const [GoogleInput, showGoogleInput] = useState(false);
@@ -57,7 +57,7 @@ export default function App() {
 
   const [theName, setTheName] = useState(null);
   const [theId, setTheId] = useState(null);
-  const [PlaceModalVisible, setPlaceModalVisible] = useState(false)
+  const [PlaceModalVisible, setPlaceModalVisible] = useState(false);
 
   const [geocoder, setGeocoder] = useState("");
   //set initial region as "home" location for new users
@@ -993,7 +993,6 @@ export default function App() {
           editPrompt={editPrompt}
           refresh={refresh}
           setEditPrompt={setEditPrompt}
-          setModalVisible={setModalVisible}
           lat={lat}
           long={long}
           showPlace={showPlace}

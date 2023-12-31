@@ -22,7 +22,7 @@ const Modality = (props) => {
         propagateSwipe={true}
         animationType="slide"
         transparent={true}
-        visible={areTherePlaces ? props.modalVisible : false}
+        visible={props.modalVisible ? props.modalVisible : false}
         onRequestClose={() => {
           Alert.alert("Modal has been closed.");
           props.setModalVisible(!props.modalVisible);

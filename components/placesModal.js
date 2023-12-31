@@ -55,7 +55,7 @@ const PlacesModal = (props) => {
         onShow={props.showPlace}
         onRequestClose={() => {
           // Alert.alert("Modal has been closed.");
-          props.setModalVisible(!props.modalVisible);
+          // props.setModalVisible(!props.modalVisible);
           props.setPlaceModalVisible(false);
         }}
       >
