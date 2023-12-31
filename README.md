@@ -1,3 +1,12 @@
+eas build --platform android --profile preview
+eas build --platform android --profile preview
+eas build --platform android --profile preview
+eas build --platform android --profile preview
+eas build --platform android --profile preview
+eas build --platform android --profile preview
+eas build --platform android --profile preview
+
+
 # MyPlaces - React Native Freeware by Leif Christian
 
 MyPlaces is a free React Native app for saving locations, navigation and directions using 

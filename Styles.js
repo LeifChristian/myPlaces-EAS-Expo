@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
 
   leftRight: {
     color: "white",
-    marginLeft: "3%",
+
     marginTop: -7,
     marginBottom: "2%",
     fontWeight: "900",

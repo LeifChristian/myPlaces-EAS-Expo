@@ -15,6 +15,8 @@ import Prompt from "react-native-input-prompt";
 import axios from "axios";
 import ScaleBar from "react-native-map-scale-bar";
 
+const theKey = "AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ"
+
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
@@ -55,7 +57,7 @@ export default function App() {
 
   const [theName, setTheName] = useState(null);
   const [theId, setTheId] = useState(null);
-  const [PlaceModalVisible, setPlaceModalVisible] = useState(false);
+  const [PlaceModalVisible, setPlaceModalVisible] = useState(false)
 
   const [geocoder, setGeocoder] = useState("");
   //set initial region as "home" location for new users
@@ -496,7 +498,7 @@ export default function App() {
   };
 
   const showPlace = () => {
-    Geocoder.init("AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ", {
+    Geocoder.init(theKey, {
       language: "en",
     });
 
@@ -599,7 +601,7 @@ export default function App() {
       )}, long: ${e.nativeEvent.coordinate.longitude.toFixed(7)}`
     );
 
-    Geocoder.init("AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ", {
+    Geocoder.init(theKey, {
       language: "en",
     });
 
@@ -1058,7 +1060,7 @@ export default function App() {
               showGoogleInput((prevState) => !prevState);
             }}
             query={{
-              key: "AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ",
+              key: theKey,
               language: "en",
             }}
           />
