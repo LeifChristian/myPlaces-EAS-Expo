@@ -172,7 +172,7 @@ const PlacesModal = (props) => {
                   props.setPlaceModalVisible(false);
                 }}
               >
-                <Text style={styles.textStyle}>X</Text>
+                <Text style={[styles.textStyle]}>X</Text>
               </Pressable>
             )}
           </View>
@@ -202,11 +202,11 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   modalView: {
-    height: 440,
+    height: 540,
     margin: 20,
     backgroundColor: "black",
     borderRadius: 20,
-    padding: 35,
+    padding:26,
     alignItems: "center",
     shadowColor: "#180",
     shadowOffset: {

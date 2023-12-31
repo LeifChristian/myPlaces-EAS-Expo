@@ -21,3 +21,29 @@ Enjoy!
 
 █░░ █▀▀ █ █▀▀   █▀▀ █░█ █▀█ █ █▀ ▀█▀ █ ▄▀█ █▄░█
 █▄▄ ██▄ █ █▀░   █▄▄ █▀█ █▀▄ █ ▄█ ░█░ █ █▀█ █░▀█
+
+
+// {
+//   "cli": {
+//     "version": ">= 1.1.1"
+//   },
+//   "build": {
+//     "development": {
+//       "developmentClient": true,
+//       "distribution": "internal"
+//     },
+//     "preview": {
+//       "android": {
+//         "buildType": "apk"
+//       }
+//     },
+//     "production": {
+//       "android": {
+//         "gradleCommand": ":app:assembleRelease"
+//       }
+//     }
+//   },
+//   "submit": {
+//     "production": {}
+//   }
+// }

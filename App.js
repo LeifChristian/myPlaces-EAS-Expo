@@ -10,6 +10,7 @@ import * as Location from "expo-location";
 import FtueScreen from "./components/ftue";
 import Modality from "./components/modal";
 import PlacesModal from "./components/placesModal";
+import styles from './Styles'
 import Prompt from "react-native-input-prompt";
 import axios from "axios";
 import ScaleBar from "react-native-map-scale-bar";
@@ -500,7 +501,7 @@ export default function App() {
     });
 
     Geocoder.from(lat, long).then((json) => {
-      // unused functionality to send list of places to backend routes i created on my self hosted AWS server
+      // unused functionality to send list of places to backend routes on self hosted AWS server
 
       // var config = {
       //   method: 'post',
@@ -647,12 +648,6 @@ export default function App() {
           const { result } = response.data;
           console.log(result?.address_components, "--result");
 
-          // var path = RNFS.DocumentDirectoryPath + '/test.txt';
-          // RNFS.writeFile(path, 'ass.', 'utf8')
-          //  .then(() => console.log('FILE WRITTEN!'))
-          //  .catch((err) => console.log(err.message));
-
-          // console.log(RNFS)
         })
         .catch(function (error) {
           console.log(error);
@@ -772,12 +767,6 @@ export default function App() {
         }}
         region={region}
       >
-        {/* 
-          { toggleWatchPosition ?
-                  <Marker coordinate={region} image={require("./pin.png")}></Marker>
-                : null
-                }
-          */}
 
         <Marker
           coordinate={region}
@@ -943,10 +932,10 @@ export default function App() {
             style={{
               height: 41,
               width: 41,
-              marginTop: 15.5,
+              marginTop: 8,
               marginRight: 3,
-              marginLeft: -7,
-              marginBottom: -200,
+              marginLeft: 4,
+              marginBottom: 0,
               justifyContent: "center",
               alignContent: "center",
               alignItems: "center",
@@ -968,7 +957,7 @@ export default function App() {
             move("plus");
           }}
         >
-          <Text style={[styles.plus, {marginTop:-2.5}]}>+</Text>
+          <Text style={[styles.plus, {marginTop:-4.5}]}>+</Text>
         </TouchableOpacity>
       </View>
 
@@ -1093,131 +1082,3 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "black",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  top: { marginTop: "10%", zIndex: -12 },
-  group: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: -1, // Added bottom margin
-  },
-
-  leftRight: {
-    color: "white",
-    marginLeft: "3%",
-    marginTop: -7,
-    marginBottom: "2%",
-    fontWeight: "900",
-    textAlign: "center",
-    fontSize: 32,
-    width: 52,
-    borderRadius: 12,
-    padding: 6,
-    backgroundColor: "black",
-  },
-  plus: {
-    color: "white",
-    marginRight: 1.4,
-    marginLeft: -12,
-    marginTop: 1,
-    fontWeight: "900",
-    textAlign: "center",
-    padding: 8,
-    fontSize: 32,
-    width: 52,
-    borderRadius: 12,
-    backgroundColor: "black",
-  },
-  minus: {
-    color: "white",
-    marginTop: 6, // Updated margin value
-    fontWeight: "900",
-    marginRight: 2,
-    textAlign: "center",
-    fontSize: 32,
-    borderRadius: 12,
-    padding: 6,
-    backgroundColor: "black",
-  },
-  
-  up: {
-    color: "white",
-    marginLeft: "1%",
-    marginTop: -31, // Updated margin value
-    marginRight: "1%",
-    fontWeight: "900",
-    textAlign: "center",
-    fontSize: 32,
-    width: 52,
-    borderRadius: 12,
-    padding: 4,
-    backgroundColor: "black",
-  },
- 
-  autoStyle: {
-    marginLeft: "auto",
-    marginBottom: "-40%",
-    color: "white",
-    textAlign: "center",
-    fontSize: 39,
-    borderRadius: 12,
-    padding: 6,
-    backgroundColor: "black",
-    marginTop: -1,
-  },
-
-  buttonStyle: {
-    marginBottom: "5%",
-    marginTop: "5%",
-    marginRight: "8%",
-    marginBottom: "1%",
-    color: "white",
-    textAlign: "center",
-    fontSize: 24,
-    borderRadius: 12,
-    padding: 6,
-    backgroundColor: "black",
-    marginTop: 2,
-  },
-
-  buttonStyleAdd: {
-    marginTop: 2,
-    marginBottom: 3, // Adjusted margin value
-    marginRight: "8%",
-    marginLeft: 11,
-    color: "white",
-    textAlign: "center",
-    fontSize: 25,
-    borderRadius: 12,
-    padding: 8,
-    backgroundColor: "black",
-    marginTop: 0, // Adjusted margin value
-  },
-  
-  Down: {
-    marginBottom: "-10%",
-    color: "white",
-    marginRight: "1%",
-    fontWeight: "800",
-    textAlign: "center",
-    fontSize: 28,
-    width: 52,
-    borderRadius: 12,
-    padding: 6,
-    backgroundColor: "black",
-    marginTop: -1.6,
-  },
-
-  modalItemStyle: { fontSize: 16, textAlign: "center", color: "white" },
-  modalHeaderStyle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "white",
-  },
-});
