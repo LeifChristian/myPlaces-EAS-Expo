@@ -49,7 +49,7 @@ export default function App() {
 
   const [GoogleInput, showGoogleInput] = useState(false);
   const [mapType, setMapType] = useState("standard");
-  const [toggleWatchPosition, settoggleWatchPosition] = useState(true);
+  const [isLiveLocationOn, setIsLiveLocationOn] = useState(true);
   const [watcher, setWatcher] = useState(null);
 
   const [theName, setTheName] = useState(null);
@@ -668,50 +668,62 @@ export default function App() {
   //turns off live location watch, or "car mode". when in motion especially fast, location keeps updating which can interfere with searches,
   //or navigation in general
   const stopMyLiveLocation = async () => {
-    if (!toggleWatchPosition) {
+    // Only stop if currently running
+    if (!isLiveLocationOn) {
       return;
     }
 
+    console.log("Stopping live location");
+    
     if (watcher) {
       await watcher.remove();
+      setWatcher(null);
     }
-    //toggle watch position
-    settoggleWatchPosition((prevState) => !prevState);
+    
+    // Explicitly set to OFF
+    setIsLiveLocationOn(false);
   };
 
-  //toggle on live location watch.
-  const showMyLiveLocation = async () => {
-    Location.watchPositionAsync(
-      {
-        enableHighAccuracy: true,
-      },
-      (location) => {
-        console.log(
-          location.coords.latitude,
-          location.coords.longitude,
-          "current location"
-        );
-        setLocations([
-          { lat: location.coords.latitude, long: location.coords.longitude },
-        ]);
-        console.log(locations, "lo");
-        setDisplay(
-          `lat: ${location.coords.latitude.toFixed(
-            7
-          )}, long: ${location.coords.longitude.toFixed(7)}`
-        );
-        setLat(location.coords.latitude);
-        setLong(location.coords.longitude);
-      }
-    )
-      .then((locationWatcher) => {
-        setWatcher(locationWatcher);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+  //turn on live location watch.
+  const startMyLiveLocation = async () => {
+    // Only start if not already running
+    if (isLiveLocationOn) {
+      return;
+    }
 
-    settoggleWatchPosition((prevState) => !prevState);
+    console.log("Starting live location");
+
+    try {
+      const locationWatcher = await Location.watchPositionAsync(
+        {
+          enableHighAccuracy: true,
+        },
+        (location) => {
+          console.log(
+            location.coords.latitude,
+            location.coords.longitude,
+            "current location"
+          );
+          setLocations([
+            { lat: location.coords.latitude, long: location.coords.longitude },
+          ]);
+          console.log(locations, "lo");
+          setDisplay(
+            `lat: ${location.coords.latitude.toFixed(
+              7
+            )}, long: ${location.coords.longitude.toFixed(7)}`
+          );
+          setLat(location.coords.latitude);
+          setLong(location.coords.longitude);
+        }
+      );
+      
+      setWatcher(locationWatcher);
+      // Explicitly set to ON
+      setIsLiveLocationOn(true);
+    } catch (err) {
+      console.log("Error starting live location:", err);
+    }
   };
   
   //core of app display.
@@ -818,7 +830,7 @@ export default function App() {
         {display == "null" ? "" : display}
       </Text>
 
-      {toggleWatchPosition ? (
+      {isLiveLocationOn ? (
         <TouchableOpacity
           onPressIn={() => {
             stopMyLiveLocation();
@@ -847,7 +859,7 @@ export default function App() {
       ) : (
         <TouchableOpacity
           onPressIn={() => {
-            showMyLiveLocation();
+            startMyLiveLocation();
           }}
         >
           <Text
@@ -951,7 +963,7 @@ export default function App() {
           <Text style={[styles.leftRight, ]}>←</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => {showMyLocation(); showMyLiveLocation()}}>
+        <TouchableOpacity onPress={() => {showMyLocation(); startMyLiveLocation()}}>
           <Image
             style={{
               height: 41,
@@ -999,7 +1011,7 @@ export default function App() {
           onPressIn={() => {
             setaddPrompt(true);
 
-            toggleWatchPosition ? stopMyLiveLocation() : "";
+            isLiveLocationOn ? stopMyLiveLocation() : "";
           }}
         >
           {!GoogleInput ? <Text style={[styles.buttonStyleAdd, ]}>Add</Text> : null}
@@ -1097,7 +1109,7 @@ export default function App() {
           theName={theName}
           showPlaces={showPlaces}
           stopMyLiveLocation={stopMyLiveLocation}
-          showMyLiveLocation={showMyLiveLocation}
+                      showMyLiveLocation={startMyLiveLocation}
           googleInput={!GoogleInput}
           mapRef={mapRef}
           refresh={refresh}
