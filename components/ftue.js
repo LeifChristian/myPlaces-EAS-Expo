@@ -21,7 +21,8 @@ const ftue = () => {
 
   useEffect(() => {
     (async () => {
-      //await AsyncStorage.removeItem('ftu'); return; // this line clears localStorage item for testing.
+      // setiterable(0)
+      // await AsyncStorage.removeItem('ftu'); return; // this line clears localStorage item for testing.
 
       try {
         const value = await AsyncStorage.getItem("ftu");

@@ -55,6 +55,7 @@ export default function App() {
   const [theName, setTheName] = useState(null);
   const [theId, setTheId] = useState(null);
   const [PlaceModalVisible, setPlaceModalVisible] = useState(false);
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   const [geocoder, setGeocoder] = useState("");
   //set initial region as "home" location for new users
@@ -193,6 +194,7 @@ export default function App() {
         long: parseFloat(locations[0].long),
         id: uuid.v4(),
         name: text,
+        dateAdded: Date.now(),
       };
       //assign previous places to array
       const prevPlaces = await AsyncStorage.getItem("places");
@@ -885,7 +887,7 @@ export default function App() {
       <Text
         style={{
           color: "white",
-          marginTop: 16,
+          marginTop: 33,
           marginBottom: -40,
           fontSize: 22,
         }}
@@ -910,7 +912,7 @@ export default function App() {
           setaddPrompt(false);
         }}
       />
-
+<View style={{marginTop: 28}}>
       <View style={[styles.group, styles.top]}>
         <TouchableOpacity
           onPressIn={() => {
@@ -943,9 +945,8 @@ export default function App() {
             style={{
               height: 41,
               width: 41,
-              marginTop: 15.5,
-              marginRight: 3,
-              marginLeft: -7,
+              marginTop: 6.5,
+              left:1,
               marginBottom: -200,
               justifyContent: "center",
               alignContent: "center",
@@ -978,7 +979,7 @@ export default function App() {
             move("down");
           }}
         >
-          <Text style={[styles.Down, ]}>↓</Text>
+          <Text style={[styles.Down]}>↓</Text>
         </TouchableOpacity>
       </View>
 
@@ -992,6 +993,8 @@ export default function App() {
         >
           {!GoogleInput ? <Text style={[styles.buttonStyleAdd, ]}>Add</Text> : null}
         </TouchableOpacity>
+
+
 
         <PlacesModal
           places={places}
@@ -1075,20 +1078,38 @@ export default function App() {
           />
         ) : null}
 
-        {showGoogleInput ? (
-          <Modality
-            places={places}
-            modalVisible={modalVisible}
-            setModalVisible={setModalVisible}
-            setTheName={setTheName}
-            theName={theName}
-            showPlaces={showPlaces}
-            stopMyLiveLocation={stopMyLiveLocation}
-            showMyLiveLocation={showMyLiveLocation}
-            googleInput={!GoogleInput}
-          />
-        ) : null}
+        <Modality
+          places={places}
+          modalVisible={modalVisible}
+          setModalVisible={setModalVisible}
+          setTheName={setTheName}
+          theName={theName}
+          showPlaces={showPlaces}
+          stopMyLiveLocation={stopMyLiveLocation}
+          showMyLiveLocation={showMyLiveLocation}
+          googleInput={!GoogleInput}
+          mapRef={mapRef}
+          refresh={refresh}
+          importModalVisible={importModalVisible}
+          setImportModalVisible={setImportModalVisible}
+          setLat={setLat}
+          setLong={setLong}
+          setTheId={setTheId}
+          setDisplay={setDisplay}
+          confirmDeletePlace={confirmDeletePlace}
+          setPlaceModalVisible={setPlaceModalVisible}
+          showGoogleInput={showGoogleInput}
+        />
       </View>
+
+      {/* Import Button - Absolutely positioned to screen bottom-right */}
+      <TouchableOpacity
+        style={styles.importButton}
+        onPress={() => setImportModalVisible(true)}
+      >
+        {!GoogleInput ? <Text style={styles.importButtonText}>⬇</Text> : null}
+      </TouchableOpacity>
+    </View>
     </View>
   );
 }
@@ -1202,7 +1223,7 @@ const styles = StyleSheet.create({
   Down: {
     marginBottom: "-10%",
     color: "white",
-    marginRight: "1%",
+    marginRight: "2%",
     fontWeight: "800",
     textAlign: "center",
     fontSize: 28,
@@ -1210,7 +1231,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 6,
     backgroundColor: "black",
-    marginTop: -1.6,
+    marginTop: -11.6,
   },
 
   modalItemStyle: { fontSize: 16, textAlign: "center", color: "white" },
@@ -1219,5 +1240,24 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
     color: "white",
+  },
+  importButton: {
+    position: 'absolute',
+    left: -42,
+    bottom: -20,
+    backgroundColor: 'transparent',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+    zIndex: 9999,
+  },
+  importButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
