@@ -423,6 +423,9 @@ export default function App() {
             longitude: element.long,
             longitudeDelta: longD,
           }}
+          tracksViewChanges={false}
+          anchor={{ x: 0.5, y: 0.5 }}
+          centerOffset={{ x: 0, y: 0 }}
           // image={require("./pin.png")}
           // <Text style={{color: "red"}}>{element.name}</Text>
         ></Marker>
@@ -767,10 +770,18 @@ export default function App() {
         style={{ marginTop: "12%", height: "68%", width: "100%" }}
         showsUserLocation={true}
         onPress={(e) => {
-          onMapPress(e); stopMyLiveLocation();
+          // Always allow map press, even near markers
+          onMapPress(e); 
+          stopMyLiveLocation();
         }}
         onLongPress={(e) => {
           onLongPress(e); stopMyLiveLocation();
+        }}
+        onPoiClick={(e) => {
+          // When POI is clicked, treat it as a map press instead
+          console.log("POI clicked, treating as map press");
+          onMapPress(e);
+          stopMyLiveLocation();
         }}
         region={region}
       >
