@@ -71,18 +71,69 @@ export default function App() {
     (async () => {
       // await AsyncStorage.removeItem('places'); // this line removes all places from storage for testing
 
-      //Get location permission
+      //FIRST: Load places from storage immediately
+      try {
+        const value = await AsyncStorage.getItem("places");
+        console.log("Raw AsyncStorage value:", value);
+
+        // if items exist in local storage, parse and set places
+        if (value !== null && value !== undefined && value !== "null") {
+          const parseley = JSON.parse(value);
+          console.log(parseley, "places from AsyncStorage - LOADED FIRST");
+          setPlaces(parseley);
+        } else {
+          console.log("No existing places found");
+          setPlaces([]); // Set empty array initially
+        }
+      } catch (e) {
+        console.log("Error loading places:", e);
+        setPlaces([]);
+      }
+
+      //SECOND: Get location permission
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         console.log("Permission to access location was denied");
         return;
       }
 
+      //THIRD: Get current location
       let location = await Location.getCurrentPositionAsync({});
-
       console.log(location, "current location");
 
-      // watch current position
+      //FOURTH: Set initial display and location
+      setLocations([
+        { lat: location.coords.latitude, long: location.coords.longitude },
+      ]);
+      setDisplay(
+        `lat: ${location.coords.latitude.toFixed(
+          7
+        )}, long: ${location.coords.longitude.toFixed(7)}`
+      );
+      setLat(location.coords.latitude);
+      setLong(location.coords.longitude);
+
+      //FIFTH: If no places existed, create default home with actual location
+      const currentPlaces = await AsyncStorage.getItem("places");
+      if (!currentPlaces || currentPlaces === "null" || JSON.parse(currentPlaces).length === 0) {
+        console.log("Creating default home place with actual location");
+        
+        let defaultPlaceObject = {
+          lat: location.coords.latitude,
+          long: location.coords.longitude,
+          id: uuid.v4(),
+          name: "home",
+          dateAdded: Date.now(),
+        };
+
+        const defaultArray = [defaultPlaceObject];
+        
+        await AsyncStorage.setItem("places", JSON.stringify(defaultArray));
+        console.log(defaultArray, "created default home place");
+        setPlaces(defaultArray);
+      }
+
+      //SIXTH: Start location watching
       Location.watchPositionAsync(
         {
           enableHighAccuracy: true,
@@ -117,46 +168,6 @@ export default function App() {
         .catch((err) => {
           console.log(err);
         });
-
-      console.log(locations, "locations");
-
-      //get places from localstorage
-
-      try {
-        const value = await AsyncStorage.getItem("places");
-
-        let placeObject = {
-          lat: lat,
-          long: long,
-          id: uuid.v4(),
-          name: "home",
-        };
-
-        const myArray = [placeObject];
-
-        // if items exist in local storage, parse and set places
-        if (value !== null) {
-          const myreturn = await AsyncStorage.getItem("places");
-          const parseley = JSON.parse(myreturn);
-          console.log(parseley, "places from AsyncStorage");
-          setPlaces(parseley);
-        }
-
-        // if no items, set one sample item called home
-        if (value == null || !value) {
-          console.log("no items");
-
-          await AsyncStorage.setItem("places", JSON.stringify(myArray));
-
-          const myreturn = await AsyncStorage.getItem("places");
-
-          const parseley = JSON.parse(myreturn);
-          console.log(parseley, "parsed returned");
-          setPlaces(parseley);
-        }
-      } catch (e) {
-        // error reading value
-      }
     })();
   }, []);
 
@@ -1109,7 +1120,7 @@ export default function App() {
           theName={theName}
           showPlaces={showPlaces}
           stopMyLiveLocation={stopMyLiveLocation}
-                      showMyLiveLocation={startMyLiveLocation}
+                      startMyLiveLocation={startMyLiveLocation}
           googleInput={!GoogleInput}
           mapRef={mapRef}
           refresh={refresh}
@@ -1267,7 +1278,7 @@ const styles = StyleSheet.create({
   importButton: {
     position: 'absolute',
     left: -42,
-    bottom: -20,
+    bottom: -10,
     backgroundColor: 'transparent',
     width: 40,
     height: 40,

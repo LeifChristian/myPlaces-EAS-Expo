@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import uuid from "react-native-uuid";
+// import { Clipboard } from 'react-native'; // Not available in this RN version
 
 const Modality = (props) => {
   const [searchText, setSearchText] = useState("");
@@ -24,6 +25,8 @@ const Modality = (props) => {
   const [singleLat, setSingleLat] = useState("");
   const [singleLong, setSingleLong] = useState("");
   const [singleName, setSingleName] = useState("");
+  const [modalTab, setModalTab] = useState("import"); // "import" or "export"
+  const [selectedPlaces, setSelectedPlaces] = useState(new Set());
 
   let areTherePlaces = props.places.length >= 1 ? true : false;
 
@@ -86,6 +89,55 @@ const Modality = (props) => {
     
     console.log("Filtered places after sort:", filtered.map(p => p.name));
     return filtered;
+  };
+
+  // Export functions
+  const togglePlaceSelection = (placeId) => {
+    const newSelected = new Set(selectedPlaces);
+    if (newSelected.has(placeId)) {
+      newSelected.delete(placeId);
+    } else {
+      newSelected.add(placeId);
+    }
+    setSelectedPlaces(newSelected);
+  };
+
+  const selectAllPlaces = () => {
+    const allIds = new Set(props.places.map(p => p.id));
+    setSelectedPlaces(allIds);
+  };
+
+  const deselectAllPlaces = () => {
+    setSelectedPlaces(new Set());
+  };
+
+  const generateExportText = () => {
+    const selectedPlacesList = props.places.filter(place => selectedPlaces.has(place.id));
+    
+    return selectedPlacesList.map(place => {
+      return `${place.name}, ${place.lat}, ${place.long}`;
+    }).join('\n');
+  };
+
+  const showExportText = () => {
+    const exportText = generateExportText();
+    if (selectedPlaces.size === 0) {
+      alert('Please select at least one place to export');
+      return;
+    }
+    
+    // Show the export text in an alert for manual copying
+    Alert.alert(
+      'Export Data',
+      exportText,
+      [
+        { text: 'OK', style: 'default' }
+      ],
+      { 
+        cancelable: true,
+        userInterfaceStyle: 'dark'
+      }
+    );
   };
 
   // Show filtered places using the original showPlaces function design
@@ -348,15 +400,17 @@ const Modality = (props) => {
     }
   };
 
-     const resetImportModal = () => {
-     props.setImportModalVisible(false);
-     setImportText("");
-     setImportError("");
-     setSingleLat("");
-     setSingleLong("");
-     setSingleName("");
-     setImportMode("bulk");
-   };
+       const resetImportModal = () => {
+    props.setImportModalVisible(false);
+    setImportText("");
+    setImportError("");
+    setSingleLat("");
+    setSingleLong("");
+    setSingleName("");
+    setImportMode("bulk");
+    setModalTab("import");
+    setSelectedPlaces(new Set());
+  };
 
   // Get filtered and sorted places for the original showPlaces function
   const getFilteredPlacesForShowPlaces = () => {
@@ -374,99 +428,201 @@ const Modality = (props) => {
        >
          <View style={styles.centeredView}>
            <View style={[styles.modalView, { height: 550 }]}>
-             <Text style={styles.importTitle}>Import Places</Text>
-             
-             {/* Mode Toggle */}
-             <View style={styles.modeToggle}>
-               <TouchableOpacity
-                 style={[styles.modeButton, importMode === "bulk" && styles.modeButtonActive]}
-                 onPress={() => {
-                   setImportMode("bulk");
-                   setImportError("");
-                 }}
-               >
-                 <Text style={styles.modeButtonText}>Bulk Import</Text>
-               </TouchableOpacity>
-               <TouchableOpacity
-                 style={[styles.modeButton, importMode === "single" && styles.modeButtonActive]}
-                 onPress={() => {
-                   setImportMode("single");
-                   setImportError("");
-                 }}
-               >
-                 <Text style={styles.modeButtonText}>Single Place</Text>
-               </TouchableOpacity>
-             </View>
+                         <Text style={styles.importTitle}>
+              {modalTab === "import" ? "Import Places" : "Export Places"}
+            </Text>
+            
+            {/* Tab Toggle */}
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[styles.modeButton, modalTab === "import" && styles.modeButtonActive]}
+                onPress={() => {
+                  setModalTab("import");
+                  setImportError("");
+                }}
+              >
+                <Text style={styles.modeButtonText}>Import</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeButton, modalTab === "export" && styles.modeButtonActive]}
+                onPress={() => {
+                  setModalTab("export");
+                  setImportError("");
+                }}
+              >
+                <Text style={styles.modeButtonText}>Export</Text>
+              </TouchableOpacity>
+            </View>
 
-             {importMode === "bulk" ? (
-               <TextInput
-                 style={styles.importTextArea}
-                 multiline
-                 placeholder="Paste JSON array or coordinate lines here..."
-                 placeholderTextColor="#666"
-                 value={importText}
-                 onChangeText={(text) => {
-                   setImportText(text);
-                   setImportError("");
-                 }}
-               />
-             ) : (
-               <View style={styles.singleImportForm}>
-                 <TextInput
-                   style={styles.singleInput}
-                   placeholder="Latitude (e.g., 40.758896)"
-                   placeholderTextColor="#666"
-                   value={singleLat}
-                   onChangeText={(text) => {
-                     setSingleLat(text);
-                     setImportError("");
-                   }}
-                   keyboardType="numeric"
-                 />
-                 <TextInput
-                   style={styles.singleInput}
-                   placeholder="Longitude (e.g., -73.985130)"
-                   placeholderTextColor="#666"
-                   value={singleLong}
-                   onChangeText={(text) => {
-                     setSingleLong(text);
-                     setImportError("");
-                   }}
-                   keyboardType="numeric"
-                 />
-                 <TextInput
-                   style={styles.singleInput}
-                   placeholder="Place name (required)"
-                   placeholderTextColor="#666"
-                   value={singleName}
-                   onChangeText={(text) => {
-                     setSingleName(text);
-                     setImportError("");
-                   }}
-                 />
-               </View>
+            {modalTab === "import" && (
+              <>
+                {/* Import Mode Toggle */}
+                <View style={[styles.modeToggle, { marginTop: 10 }]}>
+                  <TouchableOpacity
+                    style={[styles.modeButton, importMode === "bulk" && styles.modeButtonActive]}
+                    onPress={() => {
+                      setImportMode("bulk");
+                      setImportError("");
+                    }}
+                  >
+                    <Text style={styles.modeButtonText}>Bulk Import</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modeButton, importMode === "single" && styles.modeButtonActive]}
+                    onPress={() => {
+                      setImportMode("single");
+                      setImportError("");
+                    }}
+                  >
+                    <Text style={styles.modeButtonText}>Single Place</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+             {modalTab === "import" && (
+               <>
+                 {importMode === "bulk" ? (
+                   <TextInput
+                     style={styles.importTextArea}
+                     multiline
+                     placeholder="Paste JSON array or coordinate lines here..."
+                     placeholderTextColor="#666"
+                     value={importText}
+                     onChangeText={(text) => {
+                       setImportText(text);
+                       setImportError("");
+                     }}
+                   />
+                 ) : (
+                   <View style={styles.singleImportForm}>
+                     <TextInput
+                       style={styles.singleInput}
+                       placeholder="Latitude (e.g., 40.758896)"
+                       placeholderTextColor="#666"
+                       value={singleLat}
+                       onChangeText={(text) => {
+                         setSingleLat(text);
+                         setImportError("");
+                       }}
+                       keyboardType="numeric"
+                     />
+                     <TextInput
+                       style={styles.singleInput}
+                       placeholder="Longitude (e.g., -73.985130)"
+                       placeholderTextColor="#666"
+                       value={singleLong}
+                       onChangeText={(text) => {
+                         setSingleLong(text);
+                         setImportError("");
+                       }}
+                       keyboardType="numeric"
+                     />
+                     <TextInput
+                       style={styles.singleInput}
+                       placeholder="Place name (required)"
+                       placeholderTextColor="#666"
+                       value={singleName}
+                       onChangeText={(text) => {
+                         setSingleName(text);
+                         setImportError("");
+                       }}
+                     />
+                   </View>
+                 )}
+                 
+                 {importError ? (
+                   <Text style={styles.errorText}>{importError}</Text>
+                 ) : null}
+                 
+                 <View style={styles.importButtons}>
+                   <Pressable
+                     style={[styles.button, styles.buttonClose]}
+                     onPress={resetImportModal}
+                   >
+                     <Text style={styles.textStyle}>Cancel</Text>
+                   </Pressable>
+                   <Pressable
+                     style={[styles.button, styles.buttonClose]}
+                     onPress={importMode === "bulk" ? importPlaces : importSinglePlace}
+                   >
+                     <Text style={styles.textStyle}>
+                       {importMode === "bulk" ? "Import" : "Add Place"}
+                     </Text>
+                   </Pressable>
+                 </View>
+               </>
              )}
-             
-             {importError ? (
-               <Text style={styles.errorText}>{importError}</Text>
-             ) : null}
-             
-             <View style={styles.importButtons}>
-               <Pressable
-                 style={[styles.button, styles.buttonClose]}
-                 onPress={resetImportModal}
-               >
-                 <Text style={styles.textStyle}>Cancel</Text>
-               </Pressable>
-               <Pressable
-                 style={[styles.button, styles.buttonClose]}
-                 onPress={importMode === "bulk" ? importPlaces : importSinglePlace}
-               >
-                 <Text style={styles.textStyle}>
-                   {importMode === "bulk" ? "Import" : "Add Place"}
-                 </Text>
-               </Pressable>
-             </View>
+
+             {modalTab === "export" && (
+               <>
+                 {/* Select All/None Buttons */}
+                 <View style={[styles.importButtons, { marginBottom: 15 }]}>
+                   <Pressable
+                     style={[styles.button, styles.buttonClose]}
+                     onPress={selectAllPlaces}
+                   >
+                     <Text style={styles.textStyle}>Select All</Text>
+                   </Pressable>
+                   <Pressable
+                     style={[styles.button, styles.buttonClose]}
+                     onPress={deselectAllPlaces}
+                   >
+                     <Text style={styles.textStyle}>Clear All</Text>
+                   </Pressable>
+                 </View>
+
+                 {/* Places Selection List */}
+                 <ScrollView style={{ flex: 1, width: '100%', maxHeight: 300 }}>
+                   {props.places.map((place) => (
+                     <TouchableOpacity
+                       key={place.id}
+                       style={{
+                         flexDirection: 'row',
+                         alignItems: 'center',
+                         padding: 10,
+                         borderBottomWidth: 1,
+                         borderBottomColor: '#333',
+                       }}
+                       onPress={() => togglePlaceSelection(place.id)}
+                     >
+                       <View
+                         style={{
+                           width: 20,
+                           height: 20,
+                           borderRadius: 10,
+                           borderWidth: 2,
+                           borderColor: 'white',
+                           backgroundColor: selectedPlaces.has(place.id) ? 'white' : 'transparent',
+                           marginRight: 10,
+                         }}
+                       />
+                       <Text style={{ color: 'white', flex: 1 }}>
+                         {place.name}
+                       </Text>
+                     </TouchableOpacity>
+                   ))}
+                 </ScrollView>
+
+                 {/* Export Buttons */}
+                 <View style={styles.importButtons}>
+                   <Pressable
+                     style={[styles.button, styles.buttonClose]}
+                     onPress={resetImportModal}
+                   >
+                     <Text style={styles.textStyle}>Cancel</Text>
+                   </Pressable>
+                   <Pressable
+                     style={[styles.button, styles.buttonClose, { opacity: selectedPlaces.size > 0 ? 1 : 0.5 }]}
+                     onPress={showExportText}
+                   >
+                     <Text style={styles.textStyle}>
+                       Export {selectedPlaces.size > 0 ? `(${selectedPlaces.size})` : ''}
+                     </Text>
+                   </Pressable>
+                 </View>
+               </>
+             )}
            </View>
          </View>
        </Modal>
