@@ -1,21 +1,42 @@
-import { React, useState, useEffect, useRef } from "react";
+import 'react-native-get-random-values';
+import React, { useState, useEffect, useRef } from "react";
 import MapView from "react-native-maps";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Dimensions } from 'react-native';
 import { Marker } from "react-native-maps";
-import uuid from "react-native-uuid";
+import { v4 as uuidv4 } from 'uuid';
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
-import Geocoder from "react-native-geocoding";
 import * as Location from "expo-location";
+import Constants from 'expo-constants';
 import FtueScreen from "./components/ftue";
 import Modality from "./components/modal";
 import PlacesModal from "./components/placesModal";
-import Prompt from "react-native-input-prompt";
+import prompt from "react-native-prompt-android";
 import axios from "axios";
-import ScaleBar from "react-native-map-scale-bar";
+
+// Minimal XMLHttpRequest timeout fix - only for Google Places API, not map tiles
+if (global.XMLHttpRequest) {
+  const originalSend = global.XMLHttpRequest.prototype.send;
+  
+  global.XMLHttpRequest.prototype.send = function(body) {
+    // Only fix timeout for Google Places API calls, leave map tiles alone
+    if (this.responseURL && this.responseURL.includes('googleapis.com/maps/api/place')) {
+      if (this.timeout === undefined || this.timeout === null || this.timeout === 0) {
+        this.timeout = 15000;
+      }
+    }
+    
+    return originalSend.call(this, body);
+  };
+}
+
 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
+
+// Get Google Maps API key from environment variables
+const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey || 'YOUR_API_KEY_HERE';
+console.log("Google Maps API Key loaded:", GOOGLE_MAPS_API_KEY ? "✓ Key found" : "✗ NO KEY");
 
 import {
   StyleSheet,
@@ -45,18 +66,21 @@ export default function App() {
   const mapRef = useRef(null);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [addPrompt, setaddPrompt] = useState(false);
 
   const [GoogleInput, showGoogleInput] = useState(false);
   const [mapType, setMapType] = useState("standard");
-  const [toggleWatchPosition, settoggleWatchPosition] = useState(true);
+  const [isLiveLocationOn, setIsLiveLocationOn] = useState(true);
   const [watcher, setWatcher] = useState(null);
 
   const [theName, setTheName] = useState(null);
   const [theId, setTheId] = useState(null);
   const [PlaceModalVisible, setPlaceModalVisible] = useState(false);
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [ftueVisible, setFtueVisible] = useState(true);
+  const [appReady, setAppReady] = useState(false);
 
   const [geocoder, setGeocoder] = useState("");
+  const showControls = appReady && !ftueVisible;
   //set initial region as "home" location for new users
   let region = {
     latitude: lat,
@@ -70,18 +94,69 @@ export default function App() {
     (async () => {
       // await AsyncStorage.removeItem('places'); // this line removes all places from storage for testing
 
-      //Get location permission
+      //FIRST: Load places from storage immediately
+      try {
+        const value = await AsyncStorage.getItem("places");
+        console.log("Raw AsyncStorage value:", value);
+
+        // if items exist in local storage, parse and set places
+        if (value !== null && value !== undefined && value !== "null") {
+          const parseley = JSON.parse(value);
+          console.log(parseley, "places from AsyncStorage - LOADED FIRST");
+          setPlaces(parseley);
+        } else {
+          console.log("No existing places found");
+          setPlaces([]); // Set empty array initially
+        }
+      } catch (e) {
+        console.log("Error loading places:", e);
+        setPlaces([]);
+      }
+
+      //SECOND: Get location permission
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         console.log("Permission to access location was denied");
         return;
       }
 
+      //THIRD: Get current location
       let location = await Location.getCurrentPositionAsync({});
-
       console.log(location, "current location");
 
-      // watch current position
+      //FOURTH: Set initial display and location
+      setLocations([
+        { lat: location.coords.latitude, long: location.coords.longitude },
+      ]);
+      setDisplay(
+        `lat: ${location.coords.latitude.toFixed(
+          7
+        )}, long: ${location.coords.longitude.toFixed(7)}`
+      );
+      setLat(location.coords.latitude);
+      setLong(location.coords.longitude);
+
+      //FIFTH: If no places existed, create default home with actual location
+      const currentPlaces = await AsyncStorage.getItem("places");
+      if (!currentPlaces || currentPlaces === "null" || JSON.parse(currentPlaces).length === 0) {
+        console.log("Creating default home place with actual location");
+        
+        let defaultPlaceObject = {
+          lat: location.coords.latitude,
+          long: location.coords.longitude,
+          id: uuidv4(),
+          name: "home",
+          dateAdded: Date.now(),
+        };
+
+        const defaultArray = [defaultPlaceObject];
+        
+        await AsyncStorage.setItem("places", JSON.stringify(defaultArray));
+        console.log(defaultArray, "created default home place");
+        setPlaces(defaultArray);
+      }
+
+      //SIXTH: Start location watching
       Location.watchPositionAsync(
         {
           enableHighAccuracy: true,
@@ -117,45 +192,8 @@ export default function App() {
           console.log(err);
         });
 
-      console.log(locations, "locations");
-
-      //get places from localstorage
-
-      try {
-        const value = await AsyncStorage.getItem("places");
-
-        let placeObject = {
-          lat: lat,
-          long: long,
-          id: uuid.v4(),
-          name: "home",
-        };
-
-        const myArray = [placeObject];
-
-        // if items exist in local storage, parse and set places
-        if (value !== null) {
-          const myreturn = await AsyncStorage.getItem("places");
-          const parseley = JSON.parse(myreturn);
-          console.log(parseley, "places from AsyncStorage");
-          setPlaces(parseley);
-        }
-
-        // if no items, set one sample item called home
-        if (value == null || !value) {
-          console.log("no items");
-
-          await AsyncStorage.setItem("places", JSON.stringify(myArray));
-
-          const myreturn = await AsyncStorage.getItem("places");
-
-          const parseley = JSON.parse(myreturn);
-          console.log(parseley, "parsed returned");
-          setPlaces(parseley);
-        }
-      } catch (e) {
-        // error reading value
-      }
+      // App is ready - permissions granted, location loaded
+      setAppReady(true);
     })();
   }, []);
 
@@ -180,8 +218,6 @@ export default function App() {
 
   //add a place and save to localStorage
   const addPlace = async (text) => {
-    //toggle add place prompt
-    setaddPrompt(true);
     console.log(locations, " locations");
     console.log(text, "text");
 
@@ -191,8 +227,9 @@ export default function App() {
       const newPlace = {
         lat: parseFloat(locations[0].lat),
         long: parseFloat(locations[0].long),
-        id: uuid.v4(),
+        id: uuidv4(),
         name: text,
+        dateAdded: Date.now(),
       };
       //assign previous places to array
       const prevPlaces = await AsyncStorage.getItem("places");
@@ -421,6 +458,9 @@ export default function App() {
             longitude: element.long,
             longitudeDelta: longD,
           }}
+          tracksViewChanges={false}
+          anchor={{ x: 0.5, y: 1.0 }}
+          centerOffset={{ x: 0, y: 0 }}
           // image={require("./pin.png")}
           // <Text style={{color: "red"}}>{element.name}</Text>
         ></Marker>
@@ -494,13 +534,17 @@ export default function App() {
     }
   };
 
-  const showPlace = () => {
-    Geocoder.init("AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ", {
-      language: "en",
-    });
-
-    Geocoder.from(lat, long).then((json) => {
-      // unused functionality to send list of places to backend routes i created on my self hosted AWS server
+  const showPlace = async () => {
+    try {
+      const result = await Location.reverseGeocodeAsync({
+        latitude: lat,
+        longitude: long,
+      });
+      
+      if (result.length > 0) {
+        const json = { results: [{ formatted_address: `${result[0].street} ${result[0].city}, ${result[0].region}`, place_id: 'dummy_id' }] };
+        
+        // unused functionality to send list of places to backend routes i created on my self hosted AWS server
 
       // var config = {
       //   method: 'post',
@@ -533,7 +577,10 @@ export default function App() {
       let geocoderResponse = json.results;
       //set geocoder response
       setGeocoder(geocoderResponse);
-    });
+      }
+    } catch (error) {
+      console.log("Geocoding error:", error);
+    }
   };
 
   //show current location
@@ -598,14 +645,41 @@ export default function App() {
       )}, long: ${e.nativeEvent.coordinate.longitude.toFixed(7)}`
     );
 
-    Geocoder.init("AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ", {
-      language: "en",
-    });
-
-    Geocoder.from(
-      e.nativeEvent.coordinate.latitude,
-      e.nativeEvent.coordinate.longitude
-    ).then((json) => {
+    try {
+      const result = await Location.reverseGeocodeAsync({
+        latitude: e.nativeEvent.coordinate.latitude,
+        longitude: e.nativeEvent.coordinate.longitude,
+      });
+      
+      if (result.length > 0) {
+        // Use Google Places API to get real place_id instead of dummy
+        const address = `${result[0].street} ${result[0].city}, ${result[0].region}`;
+        console.log("Long press - searching for place_id for address:", address);
+        
+        let json;
+        try {
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(address)}&inputtype=textquery&fields=place_id,formatted_address&key=${GOOGLE_MAPS_API_KEY}`
+          );
+          const data = await response.json();
+          
+          if (data.candidates && data.candidates.length > 0) {
+            json = { results: [{ 
+              formatted_address: data.candidates[0].formatted_address || address, 
+              place_id: data.candidates[0].place_id 
+            }] };
+            console.log("Long press - found real place_id:", data.candidates[0].place_id);
+          } else {
+            // Fallback to dummy if no place found
+            json = { results: [{ formatted_address: address, place_id: 'dummy_id' }] };
+            console.log("Long press - no place found, using dummy_id");
+          }
+        } catch (error) {
+          console.log("Long press - error getting place_id:", error);
+          // Fallback to dummy on error
+          json = { results: [{ formatted_address: address, place_id: 'dummy_id' }] };
+        }
+        
       //below is test code to send a single location to a server
 
       // var config = {
@@ -636,7 +710,7 @@ export default function App() {
 
       var config2 = {
         method: "get",
-        url: `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ`,
+        url: `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${GOOGLE_MAPS_API_KEY}`,
         headers: {},
       };
 
@@ -657,64 +731,79 @@ export default function App() {
         .catch(function (error) {
           console.log(error);
         });
-    });
+      }
+    } catch (error) {
+      console.log("Geocoding error:", error);
+    }
   };
 
   //turns off live location watch, or "car mode". when in motion especially fast, location keeps updating which can interfere with searches,
   //or navigation in general
   const stopMyLiveLocation = async () => {
-    if (!toggleWatchPosition) {
+    // Only stop if currently running
+    if (!isLiveLocationOn) {
       return;
     }
 
+    console.log("Stopping live location");
+    
     if (watcher) {
       await watcher.remove();
+      setWatcher(null);
     }
-    //toggle watch position
-    settoggleWatchPosition((prevState) => !prevState);
+    
+    // Explicitly set to OFF
+    setIsLiveLocationOn(false);
   };
 
-  //toggle on live location watch.
-  const showMyLiveLocation = async () => {
-    Location.watchPositionAsync(
-      {
-        enableHighAccuracy: true,
-      },
-      (location) => {
-        console.log(
-          location.coords.latitude,
-          location.coords.longitude,
-          "current location"
-        );
-        setLocations([
-          { lat: location.coords.latitude, long: location.coords.longitude },
-        ]);
-        console.log(locations, "lo");
-        setDisplay(
-          `lat: ${location.coords.latitude.toFixed(
-            7
-          )}, long: ${location.coords.longitude.toFixed(7)}`
-        );
-        setLat(location.coords.latitude);
-        setLong(location.coords.longitude);
-      }
-    )
-      .then((locationWatcher) => {
-        setWatcher(locationWatcher);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+  //turn on live location watch.
+  const startMyLiveLocation = async () => {
+    // Only start if not already running
+    if (isLiveLocationOn) {
+      return;
+    }
 
-    settoggleWatchPosition((prevState) => !prevState);
+    console.log("Starting live location");
+
+    try {
+      const locationWatcher = await Location.watchPositionAsync(
+        {
+          enableHighAccuracy: true,
+        },
+        (location) => {
+          console.log(
+            location.coords.latitude,
+            location.coords.longitude,
+            "current location"
+          );
+          setLocations([
+            { lat: location.coords.latitude, long: location.coords.longitude },
+          ]);
+          console.log(locations, "lo");
+          setDisplay(
+            `lat: ${location.coords.latitude.toFixed(
+              7
+            )}, long: ${location.coords.longitude.toFixed(7)}`
+          );
+          setLat(location.coords.latitude);
+          setLong(location.coords.longitude);
+        }
+      );
+      
+      setWatcher(locationWatcher);
+      // Explicitly set to ON
+      setIsLiveLocationOn(true);
+    } catch (err) {
+      console.log("Error starting live location:", err);
+    }
   };
   
   //core of app display.
   return (
     <View style={styles.container}>
-      {mapType == "standard" ? (
+      {showControls && (mapType == "standard" ? (
         <TouchableOpacity
-          style={{ marginTop: 40, marginBottom: -135, zIndex: 2 }}
+          style={{ position: 'absolute', top: 30, alignSelf: 'center', zIndex: 3, elevation: 3 }}
           onPress={() => {
             //toggle map type, or street/satellite view
             setMapType("satellite");
@@ -733,7 +822,7 @@ export default function App() {
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
-          style={{ marginTop: 40, marginBottom: -135, zIndex: 2 }}
+          style={{ position: 'absolute', top: 30, alignSelf: 'center', zIndex: 3, elevation: 3 }}
           onPress={() => {
             setMapType("standard");
           }}
@@ -749,28 +838,42 @@ export default function App() {
             SATELLITE
           </Text>
         </TouchableOpacity>
-      )}
+      ))}
 
-      <FtueScreen
-        pagekey={"uniquekey"}
-        title={"categort title"}
-        description={"topic description"}
-      />
+      {appReady ? (
+        <FtueScreen
+          pagekey={"uniquekey"}
+          title={"categort title"}
+          description={"topic description"}
+          setFtueVisible={setFtueVisible}
+        />
+      ) : null}
 
       <MapView
-        userInterfaceStyle={"dark"}
         ref={mapRef}
         zoomEnabled={true}
         mapType={mapType}
-        style={{ marginTop: "12%", height: "68%", width: "100%" }}
+        style={{ marginTop: -30, height: "68%", width: "100%", backgroundColor: "black" }}
         showsUserLocation={true}
+        onMapReady={() => console.log("MapView is ready!")}
+        onMapLoaded={() => console.log("Map tiles loaded!")}
+        onError={(error) => console.log("MapView error:", error)}
+        loadingEnabled={false}
         onPress={(e) => {
-          onMapPress(e); stopMyLiveLocation();
+          // Always allow map press, even near markers
+          onMapPress(e); 
+          stopMyLiveLocation();
         }}
         onLongPress={(e) => {
           onLongPress(e); stopMyLiveLocation();
         }}
-        region={region}
+        onPoiClick={(e) => {
+          // When POI is clicked, treat it as a map press instead
+          console.log("POI clicked, treating as map press");
+          onMapPress(e);
+          stopMyLiveLocation();
+        }}
+        region={region || undefined}
       >
         {/* 
           { toggleWatchPosition ?
@@ -784,216 +887,206 @@ export default function App() {
           image={require("./images/pin.png")}
         ></Marker>
         {list()}
-      </MapView>
+      </MapView>  
+   
 
       {/* <ScaleBar zoom={(longD/latD)} latitude={latD}>{console.log((latD, longD + 'nice'))}</ScaleBar> */}
 
-      <View style={{ backgroundColor: "black" }}></View>
+      {showControls ? (
+        <View style={{ backgroundColor: "black" }}></View>
+      ) : null}
 
-      <Text
-        style={{
-          color: "black",
-          fontSize: 16,
-          marginTop: "-12%",
-          fontWeight: "600",
-          marginBottom: "2%",
-          backgroundColor: "rgba(161, 155, 155, 0.3)",
-          borderRadius: 11,
-          padding: 6,
-        }}
-      >
-        {display == "null" ? "" : display}
-      </Text>
+      {showControls ? (
+        <Text
+          style={{
+            color: "black",
+            fontSize: 16,
+            marginTop: "-12%",
+            fontWeight: "600",
+            marginBottom: "2%",
+            backgroundColor: "rgba(161, 155, 155, 0.3)",
+            borderRadius: 11,
+            padding: 6,
+          }}
+        >
+          {display == "null" ? "" : display}
+        </Text>
+      ) : null}
 
-      {toggleWatchPosition ? (
+      {showControls ? (
+        isLiveLocationOn ? (
+          <TouchableOpacity
+            onPressIn={() => {
+              stopMyLiveLocation();
+            }}
+          >
+            <Text
+              style={{
+                marginTop: 24,
+                marginLeft: 300,
+                height: 80,
+                marginBottom: -68,
+              }}
+            >
+              <Image
+                style={{
+                  height: 33,
+                  width: 20,
+                  marginTop: 4,
+                  marginRight: 2,
+                  marginLeft: -2,
+                }}
+                source={require("./images/walking.png")}
+              ></Image>
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPressIn={() => {
+              startMyLiveLocation();
+            }}
+          >
+            <Text
+              style={{
+                marginTop: 20,
+                marginLeft: 300,
+                height: 80,
+                marginBottom: -78,
+              }}
+            >
+              <Image
+                style={{
+                  height: 35,
+                  width: 35,
+                  marginTop: 4,
+                  marginRight: 2,
+                  marginLeft: -2,
+                }}
+                source={require("./images/car.png")}
+              ></Image>
+            </Text>
+          </TouchableOpacity>
+        )
+      ) : null}
+
+      {showControls ? (
         <TouchableOpacity
+          style={styles.googleButton}
           onPressIn={() => {
+            showGoogleInput((prevState) => !prevState);
             stopMyLiveLocation();
           }}
         >
-          <Text
-            style={{
-              marginTop: 4,
-              marginLeft: 300,
-              height: 80,
-              marginBottom: -68,
-            }}
-          >
+          <Text style={styles.autoStyle}>
             <Image
               style={{
-                height: 33,
-                width: 20,
-                marginTop: 4,
+                height: 25,
+                width: 25,
                 marginRight: 2,
                 marginLeft: -2,
+                justifyContent: "center",
+                alignContent: "center",
+                alignItems: "center",
               }}
-              source={require("./images/walking.png")}
+              source={require("./images/search.png")}
             ></Image>
           </Text>
         </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          onPressIn={() => {
-            showMyLiveLocation();
+      ) : null}
+
+      {showControls ? (
+        <Text
+          style={{
+            color: "white",
+            marginTop: 33,
+            marginBottom: -40,
+            fontSize: 22,
           }}
         >
-          <Text
-            style={{
-              marginTop: 4,
-              marginLeft: 300,
-              height: 80,
-              marginBottom: -68,
-            }}
-          >
-            <Image
-              style={{
-                height: 35,
-                width: 35,
-                marginTop: 4,
-                marginRight: 2,
-                marginLeft: -2,
-              }}
-              source={require("./images/car.png")}
-            ></Image>
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      <TouchableOpacity
-        style={styles.googleButton}
-        onPressIn={() => {
-          showGoogleInput((prevState) => !prevState);
-          stopMyLiveLocation();
-        }}
-      >
-        <Text style={styles.autoStyle}>
-          <Image
-            style={{
-              height: 25,
-              width: 25,
-              marginRight: 2,
-              marginLeft: -2,
-              justifyContent: "center",
-              alignContent: "center",
-              alignItems: "center",
-            }}
-            source={require("./images/search.png")}
-          ></Image>
+          {theName}
         </Text>
-      </TouchableOpacity>
+      ) : null}
 
-      <Text
-        style={{
-          color: "white",
-          marginTop: 16,
-          marginBottom: -40,
-          fontSize: 22,
-        }}
-      >
-        {theName}
-      </Text>
+      {showControls ? (
+        <View style={styles.controlsContainer}>
+          {/* Top Row - Up Button */}
+          <View style={styles.topRow}>
+            <TouchableOpacity onPressIn={() => move("up")} style={styles.buttonContainer}>
+              <Text style={styles.directionButton}>↑</Text>
+            </TouchableOpacity>
+          </View>
 
-      <Prompt
-        style={{ backgroundColor: "black" }}
-        visible={addPrompt}
-        title="Name Your Place"
-        placeholder="..."
-        submitText={"Save"}
-        cancelText={"Cancel"}
-        titleStyle={{ color: "black" }}
-        onCancel={() => {
-          setaddPrompt(false);
-        }}
-        onSubmit={(text) => {
-          text.length == 0 ? (text = "untitled") : "";
-          addPlace(text);
-          setaddPrompt(false);
-        }}
-      />
+          {/* Middle Row - Zoom Out, Left, Center, Right, Zoom In */}
+          <View style={styles.middleRow}>
+            <TouchableOpacity onPressIn={() => move("minus")} style={[styles.buttonContainer, {marginRight: -10}]}>
+              <Text style={styles.zoomButton}>--</Text>
+            </TouchableOpacity>
 
-      <View style={[styles.group, styles.top]}>
-        <TouchableOpacity
-          onPressIn={() => {
-            move("up");
-          }}
-        >
-          <Text style={[styles.up, ]}>↑</Text>
-        </TouchableOpacity>
-      </View>
+            <TouchableOpacity onPressIn={() => move("left")} style={styles.buttonContainer}>
+              <Text style={styles.directionButton}>←</Text>
+            </TouchableOpacity>
 
-      <View style={styles.group }>
-        <TouchableOpacity
-          onPressIn={() => {
-            move("minus");
-          }}
-        >
-          <Text style={[styles.minus, { marginTop:-2.5, width: 'auto', marginLeft: -7}]}>--</Text>
-        </TouchableOpacity>
+            <TouchableOpacity onPress={() => {showMyLocation(); startMyLiveLocation()}} style={styles.buttonContainer}>
+              <Image
+                style={styles.centerImage}
+                source={require("./images/center.png")}
+              />
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          onPressIn={() => {
-            move("left");
-          }}
-        >
-          <Text style={[styles.leftRight, ]}>←</Text>
-        </TouchableOpacity>
+            <TouchableOpacity onPressIn={() => move("right")} style={styles.buttonContainer}>
+              <Text style={styles.directionButton}>→</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => {showMyLocation(); showMyLiveLocation()}}>
-          <Image
-            style={{
-              height: 41,
-              width: 41,
-              marginTop: 15.5,
-              marginRight: 3,
-              marginLeft: -7,
-              marginBottom: -200,
-              justifyContent: "center",
-              alignContent: "center",
-              alignItems: "center",
-            }}
-            source={require("./images/center.png")}
-          ></Image>
-        </TouchableOpacity>
+            <TouchableOpacity onPressIn={() => move("plus")} style={[styles.buttonContainer, {marginLeft: -15}]}>
+              <Text style={styles.zoomButton}>+</Text>
+            </TouchableOpacity>
+          </View>
 
-        <TouchableOpacity
-          onPressIn={() => {
-            move("right");
-          }}
-        >
-          <Text style={[styles.leftRight, ]}>→</Text>
-        </TouchableOpacity>
+          {/* Bottom Row - Down Button */}
+          <View style={styles.bottomRow}>
+            <TouchableOpacity onPressIn={() => move("down")} style={styles.buttonContainer}>
+              <Text style={styles.directionButton}>↓</Text>
+            </TouchableOpacity>
+          </View>
 
-        <TouchableOpacity
-          onPressIn={() => {
-            move("plus");
-          }}
-        >
-          <Text style={[styles.plus, {marginTop:-2.5}]}>+</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Action Buttons Row */}
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity
+              onPressIn={() => {
+                prompt(
+                  'Name Your Place',
+                  '',
+                  [
+                    {text: 'Cancel', style: 'cancel'},
+                    {text: 'Save', onPress: (text) => addPlace(text || "untitled")},
+                  ],
+                  {
+                    type: 'plain-text',
+                    cancelable: true,
+                    placeholder: '...'
+                  }
+                );
+                isLiveLocationOn ? stopMyLiveLocation() : "";
+              }}
+              style={styles.buttonContainer}
+            >
+              <Text style={[styles.actionButton, GoogleInput ? {opacity: 0} : null]}>Add</Text>
+            </TouchableOpacity>
 
-      <View style={styles.group}>
-        <TouchableOpacity
-          onPressIn={() => {
-            move("down");
-          }}
-        >
-          <Text style={[styles.Down, ]}>↓</Text>
-        </TouchableOpacity>
-      </View>
+            <TouchableOpacity
+              onPressIn={() => {
+                setModalVisible(true);
+                stopMyLiveLocation();
+              }}
+              style={styles.buttonContainer}
+            >
+              <Text style={[styles.actionButton, GoogleInput ? {opacity: 0} : null]}>Places</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
 
-      <View style={styles.group}>
-        <TouchableOpacity
-          onPressIn={() => {
-            setaddPrompt(true);
-
-            toggleWatchPosition ? stopMyLiveLocation() : "";
-          }}
-        >
-          {!GoogleInput ? <Text style={[styles.buttonStyleAdd, ]}>Add</Text> : null}
-        </TouchableOpacity>
-
-        <PlacesModal
+      <PlacesModal
           places={places}
           theName={theName}
           setTheName={setTheName}
@@ -1014,81 +1107,164 @@ export default function App() {
           setPlaceModalVisible={setPlaceModalVisible}
         />
 
-        {GoogleInput ? (
+      {GoogleInput ? (
           <GooglePlacesAutocomplete
-            GooglePlacesDetailsQuery={{ fields: "geometry" }}
-            visible={GoogleInput}
-            isRowScrollable={true}
+            placeholder="Search"
+            fetchDetails={true}
+            enablePoweredByContainer={false}
+            listViewDisplayed="auto"
+            returnKeyType="search"
+            minLength={2}
+            debounce={300}
+            keepResultsAfterBlur={true}
+            keyboardShouldPersistTaps="always"
+            predefinedPlaces={[]}
+            predefinedPlacesAlwaysVisible={false}
+            GooglePlacesDetailsQuery={{ 
+              fields: "geometry,name,formatted_address,place_id,types"
+            }}
+
             styles={{
+              container: {
+                flex: 0,
+                position: 'absolute',
+                width: '100%',
+                zIndex: 1000,
+                elevation: 10,
+                top: 170,
+              },
               textInput: {
-                marginTop: -490,
                 marginLeft: 17,
+                marginRight: 17,
                 height: 50,
                 color: "black",
                 fontSize: 16,
+                backgroundColor: "white",
+                borderWidth: 1,
+                borderColor: "#ccc",
+                borderRadius: 8,
+                paddingHorizontal: 12,
               },
-
               listView: {
-                marginTop: -450,
-                textAlign: "center",
-                height: 22,
-                marginLeft: -5,
-                width: "110%",
+                backgroundColor: "white",
+                marginLeft: 17,
+                marginRight: 17,
+                elevation: 5,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                borderRadius: 8,
+                marginTop: 2,
+                maxHeight: 300,
+                borderWidth: 1,
+                borderColor: '#ddd',
               },
               row: {
                 backgroundColor: "#FFFFFF",
                 padding: 13,
                 height: 44,
-                width: 600,
                 flexDirection: "row",
+                borderBottomWidth: 1,
+                borderBottomColor: "#eee",
               },
             }}
-            fetchDetails={true}
-            placeholder="Search"
             onPress={(data, details = null) => {
-              // 'details' is provided when fetchDetails = true
-              // console.log(data, details);
-              console.log(details.geometry.location.lat);
-              console.log(details.geometry.location.lng);
-
-              stopMyLiveLocation();
-              setLat(details.geometry.location.lat);
-              setLong(details.geometry.location.lng);
-              setLongD(0.00867);
-              setDisplay(
-                `lat: ${details.geometry.location.lat.toFixed(
-                  7
-                )}, long: ${details.geometry.location.lng.toFixed(7)}`
-              );
-              setLocations([
-                {
-                  lat: details.geometry.location.lat,
-                  long: details.geometry.location.lng,
-                },
-              ]);
-              showGoogleInput((prevState) => !prevState);
+              console.log("=== SEARCH RESULT CLICKED ===");
+              console.log("Data:", JSON.stringify(data, null, 2));
+              console.log("Details:", JSON.stringify(details, null, 2));
+              
+              // Try multiple possible data structures
+              let lat, lng;
+              
+              // Original structure
+              if (details && details.geometry && details.geometry.location) {
+                lat = details.geometry.location.lat;
+                lng = details.geometry.location.lng;
+                console.log("Found coords in details.geometry.location:", lat, lng);
+              }
+              // Alternative structure
+              else if (data && data.geometry && data.geometry.location) {
+                lat = data.geometry.location.lat;
+                lng = data.geometry.location.lng;
+                console.log("Found coords in data.geometry.location:", lat, lng);
+              }
+              // Another possible structure
+              else if (details && details.lat && details.lng) {
+                lat = details.lat;
+                lng = details.lng;
+                console.log("Found coords in details directly:", lat, lng);
+              }
+              else {
+                console.log("NO COORDINATES FOUND - check the data structure above");
+              }
+              
+              if (lat && lng) {
+                console.log("Navigating to:", lat, lng);
+                stopMyLiveLocation();
+                setLat(lat);
+                setLong(lng);
+                setLongD(0.00867);
+                setDisplay(
+                  `lat: ${lat.toFixed(7)}, long: ${lng.toFixed(7)}`
+                );
+                setLocations([{ lat, long: lng }]);
+              }
+              
+              showGoogleInput(false);
+            }}
+            onFail={(error) => {
+              console.log("Google Places API FAILED:", error);
+              console.log("API Key being used:", GOOGLE_MAPS_API_KEY ? "Key exists" : "NO API KEY");
+            }}
+            onNotFound={() => {
+              console.log("Google Places: No results found");
             }}
             query={{
-              key: "AIzaSyDgf-kFLAr50LunR7vDOwvWG6ZgDc9OQHQ",
+              key: GOOGLE_MAPS_API_KEY,
               language: "en",
+              // Remove types restriction to search everything: businesses, landmarks, addresses, etc.
+            }}
+            timeout={20000}
+            textInputProps={{
+              onBlur: () => showGoogleInput(false),
+              autoFocus: true,
             }}
           />
         ) : null}
 
-        {showGoogleInput ? (
-          <Modality
-            places={places}
-            modalVisible={modalVisible}
-            setModalVisible={setModalVisible}
-            setTheName={setTheName}
-            theName={theName}
-            showPlaces={showPlaces}
-            stopMyLiveLocation={stopMyLiveLocation}
-            showMyLiveLocation={showMyLiveLocation}
-            googleInput={!GoogleInput}
-          />
-        ) : null}
-      </View>
+      <Modality
+          places={places}
+          modalVisible={modalVisible}
+          setModalVisible={setModalVisible}
+          setTheName={setTheName}
+          theName={theName}
+          showPlaces={showPlaces}
+          stopMyLiveLocation={stopMyLiveLocation}
+                      startMyLiveLocation={startMyLiveLocation}
+          googleInput={false}
+          mapRef={mapRef}
+          refresh={refresh}
+          importModalVisible={importModalVisible}
+          setImportModalVisible={setImportModalVisible}
+          setLat={setLat}
+          setLong={setLong}
+          setTheId={setTheId}
+          setDisplay={setDisplay}
+          confirmDeletePlace={confirmDeletePlace}
+          setPlaceModalVisible={setPlaceModalVisible}
+                    showGoogleInput={showGoogleInput}
+        />
+
+      {/* Import Button - Absolutely positioned to screen bottom-right */}
+      {showControls && !GoogleInput && !modalVisible && !PlaceModalVisible && !importModalVisible ? (
+        <TouchableOpacity
+          style={styles.importButton}
+          onPress={() => setImportModalVisible(true)}
+        >
+          <Text style={styles.importButtonText}>⬇</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -1098,65 +1274,80 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "black",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
-  top: { marginTop: "10%", zIndex: -12 },
-  group: {
+  controlsContainer: {
+    marginTop: 28,
+    alignItems: "center",
+  },
+  topRow: {
+    alignItems: "center",
+    marginBottom: -15,
+  },
+  middleRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    marginBottom: -1, // Added bottom margin
+    marginBottom: -12,
+  },
+  bottomRow: {
+    alignItems: "center",
+
+  },
+  buttonContainer: {
+    margin: 5,
   },
 
-  leftRight: {
+  directionButton: {
     color: "white",
-    marginLeft: "3%",
-    marginTop: -7,
-    marginBottom: "2%",
     fontWeight: "900",
     textAlign: "center",
     fontSize: 32,
     width: 52,
+    height: 52,
     borderRadius: 12,
-    padding: 6,
-    backgroundColor: "black",
-  },
-  plus: {
-    color: "white",
-    marginRight: 1.4,
-    marginLeft: -12,
-    marginTop: 1,
-    fontWeight: "900",
-    textAlign: "center",
     padding: 8,
-    fontSize: 32,
-    width: 52,
-    borderRadius: 12,
     backgroundColor: "black",
+    textAlignVertical: "center",
   },
-  minus: {
+  zoomButton: {
     color: "white",
-    marginTop: 6, // Updated margin value
     fontWeight: "900",
-    marginRight: 2,
     textAlign: "center",
     fontSize: 32,
+    width: 52,
+    height: 52,
     borderRadius: 12,
-    padding: 6,
+    padding: 8,
     backgroundColor: "black",
+    textAlignVertical: "center",
+    marginTop: 10,
   },
+  centerImage: {
+    height: 41,
+    width: 41,
+    marginTop: 19,
+
+  },
+  actionButtonsRow: {
+    flexDirection: "row",
+    
+    alignItems: "center",
+    marginTop: 5,
+    marginBottom: 10,
+    width: "100%",
+  },
+  actionButton: {
+    color: "white",
+    textAlign: "center",
+    fontSize: 22,
+    paddingBottom: 35,
+    fontWeight: "bold",
+    borderRadius: 12,
+    paddingVertical: 1,
   
-  up: {
-    color: "white",
-    marginLeft: "1%",
-    marginTop: -31, // Updated margin value
-    marginRight: "1%",
-    fontWeight: "900",
-    textAlign: "center",
-    fontSize: 32,
-    width: 52,
-    borderRadius: 12,
-    padding: 4,
     backgroundColor: "black",
+    minWidth: 90,
   },
  
   autoStyle: {
@@ -1173,8 +1364,7 @@ const styles = StyleSheet.create({
 
   buttonStyle: {
     marginBottom: "5%",
-    marginTop: "5%",
-    marginRight: "8%",
+    marginRight: "2%",
     marginBottom: "1%",
     color: "white",
     textAlign: "center",
@@ -1185,39 +1375,30 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  buttonStyleAdd: {
-    marginTop: 2,
-    marginBottom: 3, // Adjusted margin value
-    marginRight: "8%",
-    marginLeft: 11,
-    color: "white",
-    textAlign: "center",
-    fontSize: 25,
-    borderRadius: 12,
-    padding: 8,
-    backgroundColor: "black",
-    marginTop: 0, // Adjusted margin value
-  },
-  
-  Down: {
-    marginBottom: "-10%",
-    color: "white",
-    marginRight: "1%",
-    fontWeight: "800",
-    textAlign: "center",
-    fontSize: 28,
-    width: 52,
-    borderRadius: 12,
-    padding: 6,
-    backgroundColor: "black",
-    marginTop: -1.6,
-  },
-
   modalItemStyle: { fontSize: 16, textAlign: "center", color: "white" },
   modalHeaderStyle: {
     fontSize: 18,
     fontWeight: "bold",
     textAlign: "center",
     color: "white",
+  },
+  importButton: {
+    position: 'absolute',
+    right: 10,
+    bottom: 30,
+    backgroundColor: 'black',
+    width: 30,
+    height: 30,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+    zIndex: 9999,
+  },
+  importButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });

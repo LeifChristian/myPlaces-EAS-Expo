@@ -11,7 +11,7 @@ import {
   Linking,
   Button,
 } from "react-native";
-import Prompt from "react-native-input-prompt";
+import prompt from "react-native-prompt-android";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const PlacesModal = (props) => {
@@ -67,28 +67,30 @@ const PlacesModal = (props) => {
               selectionColor="blue"
               style={styles.modalText}
             >
-              <Prompt
-                style={{ backgroundColor: "black" }}
-                visible={props.editPrompt}
-                title={`Rename "${props.theName}":`}
-                placeholder="..."
-                submitText={"Save"}
-                cancelText={"Cancel"}
-                titleStyle={{ color: "black" }}
-                onCancel={() => {
-                  console.log("cancelled");
-                  props.setEditPrompt(false);
-                }}
-                onSubmit={(text) => {
-                  if (text.length == 0) {
-                    alert("no text entered, idiot!");
-                    return;
-                  }
-                  changeName(text);
-                  props.setTheName(text);
-                  props.setEditPrompt(false);
-                }}
-              />
+              {props.editPrompt && prompt(
+                `Rename "${props.theName}":`,
+                '',
+                [
+                  {text: 'Cancel', onPress: () => {
+                    console.log("cancelled");
+                    props.setEditPrompt(false);
+                  }},
+                  {text: 'Save', onPress: (text) => {
+                    if (!text || text.length == 0) {
+                      alert("no text entered, idiot!");
+                      return;
+                    }
+                    changeName(text);
+                    props.setTheName(text);
+                    props.setEditPrompt(false);
+                  }},
+                ],
+                {
+                  type: 'plain-text',
+                  cancelable: true,
+                  placeholder: '...'
+                }
+              )}
               <Text style={{ fontSize: 20, color: "white", fontWeight: "700" }}>
                 {props.theName
                   ? props.theName
@@ -195,7 +197,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: 30,
-    width: 400,
+    width: "100%",
 
     // backgroundColor: 'rgba(0,0,0,1)',
     marginBottom: 260,

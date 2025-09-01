@@ -1,0 +1,14 @@
+# EAS Build ignore file
+# Exclude build artifacts and cache directories
+android/build/
+ios/build/
+.expo/
+node_modules/
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Exclude any corrupted downloads
+**/downloads/
+**/boost_*.tar.gz 

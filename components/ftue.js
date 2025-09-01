@@ -14,14 +14,16 @@ const propTypes = {};
 
 const defaultProps = {};
 
-const ftue = () => {
+const ftue = ({ setFtueVisible }) => {
   const [iterable, setiterable] = useState(0);
 
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
-      //await AsyncStorage.removeItem('ftu'); return; // this line clears localStorage item for testing.
+      // setiterable(0)
+       //await AsyncStorage.removeItem('ftu'); return; // this line clears localStorage item for testing.
+       //await AsyncStorage.clear(); // Clears everything
 
       try {
         const value = await AsyncStorage.getItem("ftu");
@@ -30,8 +32,9 @@ const ftue = () => {
           await AsyncStorage.setItem("ftu", "false"); // comment this line to make changes to ftue screen.
           setModalVisible(true);
         } else if (value) {
-          //console.log("is first time user: ", value)
+          // Returning user: ensure FTUE modal is hidden and notify parent to show controls
           setModalVisible(false);
+          if (setFtueVisible) setFtueVisible(false);
         }
       } catch (e) {
         // error reading value
@@ -264,6 +267,7 @@ const ftue = () => {
               <TouchableHighlight
                 onPress={() => {
                   setModalVisible(false);
+                  if (setFtueVisible) setFtueVisible(false);
                 }}
               >
                 <View style={styles.ftreExitButtonContainer}>
