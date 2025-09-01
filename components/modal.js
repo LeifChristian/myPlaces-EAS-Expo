@@ -25,6 +25,9 @@ const Modality = (props) => {
   const [singleLat, setSingleLat] = useState("");
   const [singleLong, setSingleLong] = useState("");
   const [singleName, setSingleName] = useState("");
+  const [singleInputMode, setSingleInputMode] = useState("text"); // 'text' or 'link'
+  const [singleLink, setSingleLink] = useState("");
+  const [linkParsed, setLinkParsed] = useState(false);
   const [modalTab, setModalTab] = useState("import"); // "import" or "export"
   const [selectedPlaces, setSelectedPlaces] = useState(new Set());
   const [exportModalVisible, setExportModalVisible] = useState(false);
@@ -175,6 +178,7 @@ const Modality = (props) => {
                 fontSize: 18,
                 fontWeight: "bold",
                 textAlign: "center",
+                
                 color: "white",
               }}
             >
@@ -388,6 +392,41 @@ const Modality = (props) => {
     }
   };
 
+  // Parse Google Maps link to lat/long and name
+  const parseGoogleMapsLink = async () => {
+    setImportError("");
+    setLinkParsed(false);
+    let link = (singleLink || "").trim();
+    if (!link) { setImportError("Link is required"); return; }
+    if (link.startsWith("@http")) link = link.slice(1);
+    try {
+      let working = link;
+      try {
+        const res = await fetch(working, { method: 'GET' });
+        if (res && res.url) working = res.url;
+      } catch (_) {}
+
+      let latMatch; let longMatch; let nameCandidate = "";
+      const atMatch = working.match(/@(-?[\d.]+),(-?[\d.]+)/);
+      if (atMatch) { latMatch = atMatch[1]; longMatch = atMatch[2]; }
+      if (!latMatch) {
+        const qMatch = working.match(/[?&](?:q|query)=(-?[\d.]+),(-?[\d.]+)/);
+        if (qMatch) { latMatch = qMatch[1]; longMatch = qMatch[2]; }
+      }
+      if (!latMatch) {
+        const llMatch = working.match(/[?&]ll=(-?[\d.]+),(-?[\d.]+)/);
+        if (llMatch) { latMatch = llMatch[1]; longMatch = llMatch[2]; }
+      }
+      const nameMatch = working.match(/\/maps\/place\/([^\/?#]+)/);
+      if (nameMatch) nameCandidate = decodeURIComponent(nameMatch[1]).replace(/\+/g, ' ');
+      if (!latMatch || !longMatch) { setImportError("Could not find coordinates in the link"); return; }
+      setSingleLat(String(latMatch));
+      setSingleLong(String(longMatch));
+      if (nameCandidate && !singleName) setSingleName(nameCandidate);
+      setLinkParsed(true);
+    } catch (e) { setImportError("Failed to parse link"); }
+  };
+
        const resetImportModal = () => {
     props.setImportModalVisible(false);
     setImportText("");
@@ -484,39 +523,90 @@ const Modality = (props) => {
                    />
                  ) : (
                    <View style={styles.singleImportForm}>
-                     <TextInput
-                       style={styles.singleInput}
-                       placeholder="Latitude (e.g., 40.758896)"
-                       placeholderTextColor="#666"
-                       value={singleLat}
-                       onChangeText={(text) => {
-                         setSingleLat(text);
-                         setImportError("");
-                       }}
-                       keyboardType="numeric"
-                     />
-                     <TextInput
-                       style={styles.singleInput}
-                       placeholder="Longitude (e.g., -73.985130)"
-                       placeholderTextColor="#666"
-                       value={singleLong}
-                       onChangeText={(text) => {
-                         setSingleLong(text);
-                         setImportError("");
-                       }}
-                       keyboardType="numeric"
-                     />
-                     <TextInput
-                       style={styles.singleInput}
-                       placeholder="Place name (required)"
-                       placeholderTextColor="#666"
-                       value={singleName}
-                       onChangeText={(text) => {
-                         setSingleName(text);
-                         setImportError("");
-                       }}
-                     />
-                   </View>
+                    {/* Single import sub-tabs: Link / Text */}
+                    <View style={[styles.modeToggle, { marginBottom: 10 }]}>
+                      <TouchableOpacity
+                        style={[styles.modeButton, singleInputMode === 'link' && styles.modeButtonActive]}
+                        onPress={() => { setSingleInputMode('link'); setImportError(''); }}
+                      >
+                        <Text style={styles.modeButtonText}>Link</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.modeButton, singleInputMode === 'text' && styles.modeButtonActive]}
+                        onPress={() => { setSingleInputMode('text'); setImportError(''); }}
+                      >
+                        <Text style={styles.modeButtonText}>Text</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {singleInputMode === 'link' ? (
+                      <>
+                        <TextInput
+                          style={styles.singleInput}
+                          placeholder="Paste Google Maps link (e.g., https://maps.app.goo.gl/...)"
+                          placeholderTextColor="#666"
+                          value={singleLink}
+                          onChangeText={(text) => { setSingleLink(text); setImportError(''); setLinkParsed(false); }}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                        <View style={styles.importButtons}>
+                          <Pressable style={[styles.button, styles.buttonClose]} onPress={parseGoogleMapsLink}>
+                            <Text style={styles.textStyle}>Parse Link</Text>
+                          </Pressable>
+                        </View>
+                        {linkParsed ? (
+                          <>
+                            <TextInput
+                              style={styles.singleInput}
+                              placeholder="Place name (editable)"
+                              placeholderTextColor="#666"
+                              value={singleName}
+                              onChangeText={(text) => { setSingleName(text); setImportError(''); }}
+                            />
+                            <Text style={{ color: '#888', fontSize: 12, textAlign: 'center', marginBottom: 8 }}>
+                              Parsed lat: {singleLat}  long: {singleLong}
+                            </Text>
+                          </>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <TextInput
+                          style={styles.singleInput}
+                          placeholder="Latitude (e.g., 40.758896)"
+                          placeholderTextColor="#666"
+                          value={singleLat}
+                          onChangeText={(text) => {
+                            setSingleLat(text);
+                            setImportError('');
+                          }}
+                          keyboardType="numeric"
+                        />
+                        <TextInput
+                          style={styles.singleInput}
+                          placeholder="Longitude (e.g., -73.985130)"
+                          placeholderTextColor="#666"
+                          value={singleLong}
+                          onChangeText={(text) => {
+                            setSingleLong(text);
+                            setImportError('');
+                          }}
+                          keyboardType="numeric"
+                        />
+                        <TextInput
+                          style={styles.singleInput}
+                          placeholder="Place name (required)"
+                          placeholderTextColor="#666"
+                          value={singleName}
+                          onChangeText={(text) => {
+                            setSingleName(text);
+                            setImportError('');
+                          }}
+                        />
+                      </>
+                    )}
+                  </View>
                  )}
                  
                  {importError ? (

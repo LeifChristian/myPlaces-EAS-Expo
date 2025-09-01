@@ -104,6 +104,17 @@ export default function App() {
           const parseley = JSON.parse(value);
           console.log(parseley, "places from AsyncStorage - LOADED FIRST");
           setPlaces(parseley);
+
+          // One-time backup of existing places
+          try {
+            const backup = await AsyncStorage.getItem("places_backup");
+            if (!backup) {
+              await AsyncStorage.setItem("places_backup", value);
+              console.log("Created one-time backup of places");
+            }
+          } catch (backupErr) {
+            console.log("Backup error:", backupErr);
+          }
         } else {
           console.log("No existing places found");
           setPlaces([]); // Set empty array initially
@@ -138,7 +149,13 @@ export default function App() {
 
       //FIFTH: If no places existed, create default home with actual location
       const currentPlaces = await AsyncStorage.getItem("places");
-      if (!currentPlaces || currentPlaces === "null" || JSON.parse(currentPlaces).length === 0) {
+      let currentArray = [];
+      try {
+        currentArray = currentPlaces ? JSON.parse(currentPlaces) : [];
+      } catch (e) {
+        currentArray = [];
+      }
+      if (!currentArray || !Array.isArray(currentArray) || currentArray.length === 0) {
         console.log("Creating default home place with actual location");
         
         let defaultPlaceObject = {
@@ -236,9 +253,15 @@ export default function App() {
       console.log(prevPlaces, "prevPlaces");
       console.log(locations[0], "locations");
       console.log(newPlace, "--new place object");
-      //set prevPlaces to parsed variable
-      const parsedReturn = JSON.parse(prevPlaces);
-      //add new place to prevPlaces with spread operator
+      // Parse previous places safely
+      let parsedReturn = [];
+      try {
+        parsedReturn = prevPlaces ? JSON.parse(prevPlaces) : [];
+        if (!Array.isArray(parsedReturn)) parsedReturn = [];
+      } catch (parseErr) {
+        parsedReturn = [];
+      }
+      // add new place to prevPlaces with spread operator
       let newArrayOfPlaces = [...parsedReturn, newPlace];
       //set new places item
       await AsyncStorage.setItem("places", JSON.stringify(newArrayOfPlaces));
@@ -289,8 +312,14 @@ export default function App() {
 
       //get places array before deleting item
       const prevPlaces = await AsyncStorage.getItem("places");
-      //parse prevPlaces
-      const parseley = JSON.parse(prevPlaces);
+      // parse prevPlaces safely
+      let parseley = [];
+      try {
+        parseley = prevPlaces ? JSON.parse(prevPlaces) : [];
+        if (!Array.isArray(parseley)) parseley = [];
+      } catch (e) {
+        parseley = [];
+      }
       console.log(parseley, "prevPlaces");
       console.log(locations[0], "locationsss");
 
@@ -853,7 +882,7 @@ export default function App() {
         ref={mapRef}
         zoomEnabled={true}
         mapType={mapType}
-        style={{ marginTop: -30, height: "68%", width: "100%", backgroundColor: "black" }}
+        style={{ marginTop: -40, height: "68%", width: "100%", backgroundColor: "black" }}
         showsUserLocation={true}
         onMapReady={() => console.log("MapView is ready!")}
         onMapLoaded={() => console.log("Map tiles loaded!")}
@@ -1000,7 +1029,9 @@ export default function App() {
             color: "white",
             marginTop: 33,
             marginBottom: -40,
+            maxWidth: "80%",
             fontSize: 22,
+            textAlign: "center",
           }}
         >
           {theName}
@@ -1037,7 +1068,7 @@ export default function App() {
               <Text style={styles.directionButton}>→</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPressIn={() => move("plus")} style={[styles.buttonContainer, {marginLeft: -15}]}>
+            <TouchableOpacity onPressIn={() => move("plus")} style={[styles.buttonContainer, {marginLeft: -10}]}>
               <Text style={styles.zoomButton}>+</Text>
             </TouchableOpacity>
           </View>
