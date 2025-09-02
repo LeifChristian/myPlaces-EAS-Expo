@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { v4 as uuidv4 } from 'uuid';
+import Constants from 'expo-constants';
 // import { Clipboard } from 'react-native'; // Not available in this RN version
 
 const Modality = (props) => {
@@ -31,6 +32,8 @@ const Modality = (props) => {
   const [modalTab, setModalTab] = useState("import"); // "import" or "export"
   const [selectedPlaces, setSelectedPlaces] = useState(new Set());
   const [exportModalVisible, setExportModalVisible] = useState(false);
+
+  const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey;
 
   let areTherePlaces = props.places.length >= 1 ? true : false;
 
@@ -399,12 +402,16 @@ const Modality = (props) => {
     let link = (singleLink || "").trim();
     if (!link) { setImportError("Link is required"); return; }
     if (link.startsWith("@http")) link = link.slice(1);
+    console.log("[Import] parse link raw=", singleLink);
     try {
       let working = link;
       try {
-        const res = await fetch(working, { method: 'GET' });
+        const res = await fetch(working, { method: 'GET', redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (Android) MyPlaces/1.0' } });
         if (res && res.url) working = res.url;
-      } catch (_) {}
+        console.log("[Import] resolved url=", working);
+      } catch (netErr) {
+        console.log("[Import] fetch redirect failed", netErr?.message || netErr);
+      }
 
       let latMatch; let longMatch; let nameCandidate = "";
       const atMatch = working.match(/@(-?[\d.]+),(-?[\d.]+)/);
@@ -417,14 +424,68 @@ const Modality = (props) => {
         const llMatch = working.match(/[?&]ll=(-?[\d.]+),(-?[\d.]+)/);
         if (llMatch) { latMatch = llMatch[1]; longMatch = llMatch[2]; }
       }
+      // Pattern 4: !3d<lat>!4d<long>
+      if (!latMatch) {
+        const m3 = working.match(/!3d(-?[\d.]+)/);
+        if (m3) latMatch = m3[1];
+      }
+      if (!longMatch) {
+        const m4 = working.match(/!4d(-?[\d.]+)/);
+        if (m4) longMatch = m4[1];
+      }
+
       const nameMatch = working.match(/\/maps\/place\/([^\/?#]+)/);
       if (nameMatch) nameCandidate = decodeURIComponent(nameMatch[1]).replace(/\+/g, ' ');
-      if (!latMatch || !longMatch) { setImportError("Could not find coordinates in the link"); return; }
+
+      // If still no coords, as a fallback, use Places Find Place From Text with the link as text
+      if ((!latMatch || !longMatch) && GOOGLE_MAPS_API_KEY) {
+        try {
+          const fpUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(working)}&inputtype=textquery&fields=geometry,name&key=${GOOGLE_MAPS_API_KEY}`;
+          const fpRes = await fetch(fpUrl);
+          const fpData = await fpRes.json();
+          console.log("[Import] findplace status=", fpData?.status, "candidates=", fpData?.candidates?.length || 0);
+          const cand = fpData?.candidates?.[0];
+          if (cand?.geometry?.location) {
+            latMatch = String(cand.geometry.location.lat);
+            longMatch = String(cand.geometry.location.lng);
+          }
+          if (cand?.name && !singleName) nameCandidate = cand.name;
+        } catch (apiErr) {
+          console.log("[Import] findplace fallback failed", apiErr?.message || apiErr);
+        }
+      }
+
+      // Final fallback: if we have a readable name/address, geocode it
+      if ((!latMatch || !longMatch) && GOOGLE_MAPS_API_KEY && nameCandidate) {
+        try {
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(nameCandidate)}&key=${GOOGLE_MAPS_API_KEY}`;
+          const geoRes = await fetch(geocodeUrl);
+          const geoData = await geoRes.json();
+          console.log("[Import] geocode status=", geoData?.status, "results=", geoData?.results?.length || 0);
+          const g0 = geoData?.results?.[0];
+          if (g0?.geometry?.location) {
+            latMatch = String(g0.geometry.location.lat);
+            longMatch = String(g0.geometry.location.lng);
+          }
+          if (g0?.formatted_address && !singleName) nameCandidate = g0.formatted_address;
+        } catch (geoErr) {
+          console.log("[Import] geocode fallback failed", geoErr?.message || geoErr);
+        }
+      }
+
+      if (!latMatch || !longMatch) {
+        console.log("[Import] no coords parsed from", working);
+        setImportError("Could not find coordinates in the link");
+        return;
+      }
       setSingleLat(String(latMatch));
       setSingleLong(String(longMatch));
       if (nameCandidate && !singleName) setSingleName(nameCandidate);
       setLinkParsed(true);
-    } catch (e) { setImportError("Failed to parse link"); }
+    } catch (e) {
+      console.log("[Import] parse error", e?.message || e);
+      setImportError("Failed to parse link");
+    }
   };
 
        const resetImportModal = () => {
