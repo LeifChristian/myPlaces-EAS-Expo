@@ -1415,7 +1415,7 @@ const styles = StyleSheet.create({
   },
   importButton: {
     position: 'absolute',
-    right: 10,
+    right: 40,
     bottom: 30,
     backgroundColor: 'black',
     width: 30,
