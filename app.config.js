@@ -37,6 +37,11 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#FFFFFF"
       },
+    statusBar: {
+      backgroundColor: "#ffffff",
+      barStyle: "dark-content",
+      translucent: false
+    },
       permissions: [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",

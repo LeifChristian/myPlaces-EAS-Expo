@@ -47,6 +47,7 @@ import {
   Image,
   PermissionsAndroid,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
 
 // import mapstyle from "./mapstyle.json";
 // import { StatusBar } from "expo-status-bar";
@@ -830,6 +831,7 @@ export default function App() {
   //core of app display.
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" backgroundColor="#ffffff" translucent={false} hidden={false} />
       {showControls && (mapType == "standard" ? (
         <TouchableOpacity
           style={{ position: 'absolute', top: 30, alignSelf: 'center', zIndex: 3, elevation: 3 }}
