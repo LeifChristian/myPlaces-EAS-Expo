@@ -15,10 +15,9 @@ export default function placesUiModel({ state, setters, refs, mapHandlers }) {
   const addPlace = async (text) =>
     addPlaceToStorage({ text, locations: state.locations, refresh });
 
-  const deletePlace = async (id, lat) =>
+  const deletePlace = async (id) =>
     deletePlaceFromStorage({
       id,
-      lat,
       locations: state.locations,
       refresh,
       setTheName: setters.setTheName,
@@ -29,9 +28,8 @@ export default function placesUiModel({ state, setters, refs, mapHandlers }) {
   const confirmDeletePlace = (id, lat, name) =>
     confirmDeletePlaceService({
       id,
-      lat,
       name,
-      onConfirm: () => deletePlace(id, lat, name),
+      onConfirm: () => deletePlace(id),
     });
 
   const showPlaces = () => (

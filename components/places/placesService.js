@@ -68,30 +68,24 @@ export const addPlaceToStorage = async ({ text, locations, refresh }) => {
   }
 };
 
-export const confirmDeletePlace = ({ id, lat, name, onConfirm }) => {
-  return (
-    Alert.alert("Sure?", `Confirm delete ${name}`, [
-      // The "Yes" button
-      {
-        text: "Yes",
-        onPress: () => {
-          onConfirm();
-        },
+export const confirmDeletePlace = ({ id, name, onConfirm }) => {
+  return Alert.alert("Sure?", `Confirm delete ${name}`, [
+    // The "Yes" button
+    {
+      text: "Yes",
+      onPress: () => {
+        onConfirm();
       },
-      // Dismiss the dialog when tapped
-      {
-        text: "No",
-      },
-    ]),
-    lat,
-    id,
-    name
-  );
+    },
+    // Dismiss the dialog when tapped
+    {
+      text: "No",
+    },
+  ]);
 };
 
 export const deletePlaceFromStorage = async ({
   id,
-  lat,
   locations,
   refresh,
   setTheName,
@@ -101,11 +95,10 @@ export const deletePlaceFromStorage = async ({
   //remove name and id of deleted place.
   setTheName("");
   setTheId("");
-  //  alert(` Deleted:  ${id} | Lat: ${lat}`)
   // close modal
   setModalVisible(false);
   try {
-    console.log(id, lat);
+    console.log(id, "deleting place");
 
     //get places array before deleting item
     const prevPlaces = await AsyncStorage.getItem("places");
