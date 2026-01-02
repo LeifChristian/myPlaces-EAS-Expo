@@ -1,9 +1,6 @@
 import 'react-native-get-random-values';
 import "./components/app/XhrTimeoutFix";
 import React, { useState, useRef, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { v4 as uuidv4 } from 'uuid';
-import * as Location from "expo-location";
 import Constants from 'expo-constants';
 import FtueScreen from "./components/ftue";
 import Modality from "./components/modal";
@@ -31,7 +28,7 @@ import mapMovement from "./components/hooks/mapMovement";
 import mapInteractions from "./components/hooks/mapInteractions";
 
 // Get Google Maps API key from environment variables
-const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey || 'YOUR_API_KEY_HERE';
+const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey
 console.log("Google Maps API Key loaded:", GOOGLE_MAPS_API_KEY ? "✓ Key found" : "✗ NO KEY");
 
 import {
@@ -366,7 +363,7 @@ export default function App() {
         />
       </MovementControls>
 
-      <PlacesModal {...placesModalProps} />
+      <PlacesModal placesModalProps={placesModalProps} />
 
       <PlacesSearchOverlay
         visible={GoogleInput}
@@ -380,7 +377,7 @@ export default function App() {
         showGoogleInput={showGoogleInput}
       />
 
-      <Modality {...modalityProps} />
+      <Modality modalProps={modalityProps} />
 
       {/* Import Button - Absolutely positioned to screen bottom-right */}
       <ImportButton

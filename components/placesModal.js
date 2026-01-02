@@ -15,6 +15,9 @@ import prompt from "react-native-prompt-android";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const PlacesModal = (props) => {
+  // Allow App to pass a single prop-object to avoid prop-waterfalls.
+  // Backwards compatible: if not provided, behave exactly as before.
+  props = props?.placesModalProps || props;
   useEffect(() => {
     props.PlaceModalVisible ? props.setModalVisible(false) : "";
   }, [props.PlaceModalVisible]);

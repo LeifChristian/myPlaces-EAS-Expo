@@ -16,6 +16,9 @@ import Constants from 'expo-constants';
 // import { Clipboard } from 'react-native'; // Not available in this RN version
 
 const Modality = (props) => {
+  // Allow App to pass a single prop-object to avoid prop-waterfalls.
+  // Backwards compatible: if not provided, behave exactly as before.
+  props = props?.modalProps || props;
   const [searchText, setSearchText] = useState("");
   const [sortBy, setSortBy] = useState("name"); // name, lat, long, date
   const [sortOrder, setSortOrder] = useState("asc"); // asc, desc
