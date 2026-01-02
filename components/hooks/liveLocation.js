@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import * as Location from "expo-location";
 
 // Extracted from App.js start/stop live location. Keeps same side effects/guards.
-export default function useLiveLocation({
+export default function liveLocation({
   isLiveLocationOn,
   watcher,
   setWatcher,

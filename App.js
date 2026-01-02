@@ -25,15 +25,10 @@ import {
   refreshPlaces,
 } from "./components/places/placesService";
 import { styles } from "./components/app/appStyles";
-import useAppBootstrap from "./components/hooks/useAppBootstrap";
-import useLiveLocation from "./components/hooks/useLiveLocation";
-import {
-  getCurrentLocationAndSet,
-  handleLongPress,
-  handleMapPress,
-  reverseGeocodeCurrent,
-} from "./components/map/mapInteractions";
-import { moveMap } from "./components/map/mapMovement";
+import initializeLocationAndPlaces from "./components/hooks/initializeLocationAndPlaces";
+import liveLocation from "./components/hooks/liveLocation";
+import mapMovement from "./components/hooks/mapMovement";
+import mapInteractions from "./components/hooks/mapInteractions";
 
 // Get Google Maps API key from environment variables
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey || 'YOUR_API_KEY_HERE';
@@ -93,7 +88,7 @@ export default function App() {
   };
 
   //get location permission and set location watch. check for places in localstorage and display them.
-  useAppBootstrap({
+  initializeLocationAndPlaces({
     setPlaces,
     setLocations,
     setDisplay,
@@ -159,7 +154,7 @@ export default function App() {
   //move functionality for up, down, left, right, and zoom.
   //amount to be moved in any direction is determined as a ratio to zoom level
 
-  const { stopMyLiveLocation, startMyLiveLocation } = useLiveLocation({
+  const { stopMyLiveLocation, startMyLiveLocation } = liveLocation({
     isLiveLocationOn,
     watcher,
     setWatcher,
@@ -171,65 +166,85 @@ export default function App() {
     locationsRef,
   });
 
-  const move = (direction) => {
-    return moveMap({
-      direction,
-      lat,
-      long,
-      latD,
-      longD,
-      setTheName,
-      setTheId,
-      stopMyLiveLocation,
-      setLong,
-      setLat,
-      setDisplay,
-      setLocations,
-      setLongD,
-      setLatD,
-      display,
-    });
+  const { move } = mapMovement({
+    lat,
+    long,
+    latD,
+    longD,
+    display,
+    setTheName,
+    setTheId,
+    stopMyLiveLocation,
+    setLong,
+    setLat,
+    setDisplay,
+    setLocations,
+    setLongD,
+    setLatD,
+  });
+
+  const { showPlace, showMyLocation, onMapPress, onLongPress } = mapInteractions({
+    lat,
+    long,
+    setPlaceId,
+    setGeocoder,
+    setTheName,
+    setTheId,
+    setLat,
+    setLong,
+    setLongD,
+    setLatD,
+    setDisplay,
+    setLocations,
+    setModalVisible,
+    setPlaceModalVisible,
+    placeId,
+    GOOGLE_MAPS_API_KEY,
+    axios,
+  });
+
+  const placesModalProps = {
+    places,
+    theName,
+    setTheName,
+    theId,
+    geocoder,
+    editPrompt,
+    refresh,
+    setEditPrompt,
+    setModalVisible,
+    lat,
+    long,
+    showPlace,
+    setPlaceId,
+    placeId,
+    stopMyLiveLocation,
+    modalVisible,
+    PlaceModalVisible,
+    setPlaceModalVisible,
   };
 
-  const showPlace = async () => {
-    return reverseGeocodeCurrent({ lat, long, setPlaceId, setGeocoder });
-  };
-
-  const showMyLocation = async () => {
-    return getCurrentLocationAndSet({
-      setTheName,
-      setTheId,
-      setLat,
-      setLong,
-      setLongD,
-      setLatD,
-      setDisplay,
-    });
-  };
-
-  const onMapPress = (e) => {
-    return handleMapPress({
-      e,
-      setTheName,
-      setLocations,
-      setLat,
-      setLong,
-      setDisplay,
-    });
-  };
-
-  const onLongPress = async (e) => {
-    return handleLongPress({
-      e,
-      GOOGLE_MAPS_API_KEY,
-      setDisplay,
-      setModalVisible,
-      setPlaceModalVisible,
-      showPlace,
-      setPlaceId,
-      placeId,
-      axios,
-    });
+  const modalityProps = {
+    places,
+    modalVisible,
+    setModalVisible,
+    setTheName,
+    theName,
+    showPlaces,
+    stopMyLiveLocation,
+    startMyLiveLocation,
+    googleInput: false,
+    mapRef,
+    refresh,
+    importModalVisible,
+    setImportModalVisible,
+    setLat,
+    setLong,
+    setTheId,
+    setDisplay,
+    confirmDeletePlace,
+    setPlaceModalVisible,
+    showGoogleInput,
   };
   
   //core of app display.
@@ -351,26 +366,7 @@ export default function App() {
         />
       </MovementControls>
 
-      <PlacesModal
-          places={places}
-          theName={theName}
-          setTheName={setTheName}
-          theId={theId}
-          geocoder={geocoder}
-          editPrompt={editPrompt}
-          refresh={refresh}
-          setEditPrompt={setEditPrompt}
-          setModalVisible={setModalVisible}
-          lat={lat}
-          long={long}
-          showPlace={showPlace}
-          setPlaceId={setPlaceId}
-          placeId={placeId}
-          stopMyLiveLocation={stopMyLiveLocation}
-          modalVisible={modalVisible}
-          PlaceModalVisible={PlaceModalVisible}
-          setPlaceModalVisible={setPlaceModalVisible}
-        />
+      <PlacesModal {...placesModalProps} />
 
       <PlacesSearchOverlay
         visible={GoogleInput}
@@ -384,28 +380,7 @@ export default function App() {
         showGoogleInput={showGoogleInput}
       />
 
-      <Modality
-          places={places}
-          modalVisible={modalVisible}
-          setModalVisible={setModalVisible}
-          setTheName={setTheName}
-          theName={theName}
-          showPlaces={showPlaces}
-          stopMyLiveLocation={stopMyLiveLocation}
-                      startMyLiveLocation={startMyLiveLocation}
-          googleInput={false}
-          mapRef={mapRef}
-          refresh={refresh}
-          importModalVisible={importModalVisible}
-          setImportModalVisible={setImportModalVisible}
-          setLat={setLat}
-          setLong={setLong}
-          setTheId={setTheId}
-          setDisplay={setDisplay}
-          confirmDeletePlace={confirmDeletePlace}
-          setPlaceModalVisible={setPlaceModalVisible}
-                    showGoogleInput={showGoogleInput}
-        />
+      <Modality {...modalityProps} />
 
       {/* Import Button - Absolutely positioned to screen bottom-right */}
       <ImportButton

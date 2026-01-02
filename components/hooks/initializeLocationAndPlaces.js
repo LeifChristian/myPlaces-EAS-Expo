@@ -3,8 +3,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { v4 as uuidv4 } from "uuid";
 
-// Extracted from App.js. Intentionally keeps the same sequence and side effects.
-export default function useAppBootstrap({
+// Initializes persisted places + location permission + current location + default "home" + watchPosition.
+// Extracted from App.js; sequence and side effects intentionally unchanged.
+export default function initializeLocationAndPlaces({
   setPlaces,
   setLocations,
   setDisplay,
@@ -12,7 +13,7 @@ export default function useAppBootstrap({
   setLong,
   setWatcher,
   setAppReady,
-  locationsRef, // optional: pass a ref if you want to preserve logging of stale closure later
+  locationsRef, // optional: pass a ref if you want to preserve logging behavior
 }) {
   useEffect(() => {
     (async () => {
@@ -60,9 +61,7 @@ export default function useAppBootstrap({
       console.log(location, "current location");
 
       //FOURTH: Set initial display and location
-      setLocations([
-        { lat: location.coords.latitude, long: location.coords.longitude },
-      ]);
+      setLocations([{ lat: location.coords.latitude, long: location.coords.longitude }]);
       setDisplay(
         `lat: ${location.coords.latitude.toFixed(
           7
@@ -79,11 +78,7 @@ export default function useAppBootstrap({
       } catch (e) {
         currentArray = [];
       }
-      if (
-        !currentArray ||
-        !Array.isArray(currentArray) ||
-        currentArray.length === 0
-      ) {
+      if (!currentArray || !Array.isArray(currentArray) || currentArray.length === 0) {
         console.log("Creating default home place with actual location");
 
         let defaultPlaceObject = {
@@ -114,9 +109,7 @@ export default function useAppBootstrap({
           );
 
           //set current location
-          setLocations([
-            { lat: location.coords.latitude, long: location.coords.longitude },
-          ]);
+          setLocations([{ lat: location.coords.latitude, long: location.coords.longitude }]);
           console.log(locationsRef?.current ?? null, "lo");
 
           //set displayed lat/long to current location
